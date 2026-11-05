@@ -133,6 +133,36 @@ function diasHasta(texto) {
 function extra(t, n, o) {
   let m;
 
+  // Guardar la dirección del resumen de Telegram: "configura resumen https://..."
+  m = o.match(/^configura(?:r)? (?:el )?resumen\s+(https?:\/\/\S+)/i);
+  if (m) {
+    localStorage.setItem("jarvisResumenUrl", m[1]);
+    responder("✅ Resumen configurado", "Ya puedo leer el último resumen de Telegram.");
+    return true;
+  }
+
+  // Pedir un tema: "tema Real Madrid" -> copia "tema: Real Madrid" y abre el bot de Telegram
+  m = o.match(/^(?:pon(?:er)? el )?tema\s*:?\s+(.+)$/i);
+  if (m) {
+    const texto = "tema: " + m[1].trim();
+    try { navigator.clipboard.writeText(texto); } catch (e) {}
+    abrir("https://t.me/enzo_jarvis2_bot");
+    responder("📨 Tema para Telegram", "Pega el tema en el chat de Jarvis en Telegram y envíalo: " + texto,
+      { voz: "Abro Telegram. Pega el tema y envíalo." });
+    return true;
+  }
+
+  // Leer el último resumen que te envió Telegram: "resumen"
+  if (/^(?:dame el |ver el |leer el )?(?:último |ultimo )?resumen$/i.test(o.trim())) {
+    const url = localStorage.getItem("jarvisResumenUrl");
+    if (!url) { responder("Falta configurar", "Di: configura resumen y pega la dirección que te da Apps Script."); return true; }
+    responder("📰 Resumen", "Cargando el último resumen…", { voz: "Un momento" });
+    fetch(url).then(r => r.json()).then(d => {
+      responder("📰 Último resumen", d.resumen || "Todavía no hay ningún resumen guardado.");
+    }).catch(() => responder("Sin conexión", "No he podido leer el resumen. Revisa la dirección configurada."));
+    return true;
+  }
+
   // Hora en otra ciudad
   m = o.match(/^(?:qu[eé]) hora es en\s+(.+)$/i);
   if (m) { horaEn(m[1]); return true; }
