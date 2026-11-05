@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jarvis</title>
+<meta name="theme-color" content="#03050b">
+<meta name="description" content="Jarvis, tu asistente de voz">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <div class="island" id="app">
+    <div class="top">
+      <div class="time"><b id="hora">--:--</b><span id="fecha"></span></div>
+      <div class="dyn" id="dyn">
+        <span class="dot"></span>
+        <span id="status">En espera</span>
+        <span class="eq"><i></i><i></i><i></i><i></i></span>
+      </div>
+      <button class="iconbtn" id="ajustesBtn" title="Ajustes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="stage">
+      <canvas id="orb" title="Toca para hablar"></canvas>
+      <div class="timerchip" id="timerchip" hidden>
+        <span>⏱</span><span class="tlabel" id="tlabel"></span><span id="timer">00:00</span><button id="timerX" title="Cancelar">✕</button>
+      </div>
+    </div>
+
+    <div class="transcript" id="transcript">Hola, soy Jarvis. Toca el orbe o escribe.</div>
+
+    <div class="reply" id="reply" hidden>
+      <div class="rhead"><img id="rimg" alt="" hidden><h3 id="rtitle"></h3></div>
+      <p id="rtext"></p>
+      <div class="rfoot" id="rfoot"></div>
+    </div>
+
+    <div class="chips">
+      <button class="chip" data-cmd="qué tiempo hace">☀️ Tiempo</button>
+      <button class="chip" data-cmd="temporizador de 5 minutos">⏱ 5 min</button>
+      <button class="chip" data-cmd="tiempo mañana">🌤 Mañana</button>
+      <button class="chip" data-cmd="modo concentración">🎯 Pomodoro</button>
+      <button class="chip" data-cmd="lee mis notas">📝 Notas</button>
+      <button class="chip" data-cmd="abre youtube">▶️ YouTube</button>
+      <button class="chip" data-cmd="abre gmail">✉️ Gmail</button>
+      <button class="chip" data-cmd="noticias de hoy">📰 Noticias</button>
+      <button class="chip" data-cmd="lanza un dado">🎲 Dado</button>
+      <button class="chip" data-cmd="cuéntame un chiste">😄 Chiste</button>
+      <button class="chip" data-cmd="qué puedes hacer">✨ Ayuda</button>
+    </div>
+
+    <div class="inputbar">
+      <input id="entrada" type="text" placeholder="Escribe o pulsa el micro…" autocomplete="off">
+      <button class="mic" id="micBtn" title="Hablar (Espacio)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
+      </button>
+    </div>
+
+    <div class="sheet" id="sheet" hidden>
+      <h4>Ajustes <button class="iconbtn" id="cerrarAjustes" title="Cerrar">✕</button></h4>
+      <label class="row"><div>Siempre atento<small>Escucha sin pulsar; responde cuando dices «Jarvis…»</small></div>
+        <span class="switch"><input type="checkbox" id="optAtento"><span></span></span></label>
+      <label class="row"><div>Responder en voz alta</div>
+        <span class="switch"><input type="checkbox" id="optVoz"><span></span></span></label>
+      <label class="row"><div>Avisos en pantalla<small>Notificación cuando acaba un temporizador o recordatorio</small></div>
+        <span class="switch"><input type="checkbox" id="optAvisos"><span></span></span></label>
+      <div class="row"><div>Tu ciudad<small>Para el tiempo</small></div>
+        <input type="text" id="optCiudad" placeholder="Ej: Madrid"></div>
+      <div class="row" id="filaInstalar" hidden><div>Instalar Jarvis<small>Como app, en su propia ventana</small></div>
+        <button class="chip" id="instalarBtn">Instalar</button></div>
+      <div class="row hist"><div>Últimas órdenes<small id="historial">Todavía nada</small></div></div>
+    </div>
+  </div>
+
+  <script src="orb.js"></script>
+  <script src="jarvis.js"></script>
+  <script src="extra.js"></script>
+</body>
+</html>
