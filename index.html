@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css?v=6">
+<link rel="stylesheet" href="estilo.css?v=7">
 </head>
 <body>
   <div class="island" id="app">
@@ -27,7 +27,15 @@
 
     <div class="stage">
       <canvas id="orb" title="Toca para hablar"></canvas>
-      <button class="homemap" id="homeMap" title="Abrir mapa"><div id="homeMapa"></div><span id="homeMapaTxt">Mapa</span></button>
+      <svg class="red" id="red"></svg>
+      <div class="nodo izq" id="nodoMapa" title="Abrir el mapa grande">
+        <div class="nhead"><i style="--c:#3ee6a8"></i><span id="nodoMapaTxt">Mapa</span></div>
+        <div class="nbody"><div id="homeMapa"></div></div>
+      </div>
+      <div class="nodo der" id="nodoCal" title="Abrir el calendario">
+        <div class="nhead"><i style="--c:#8b7bff"></i><span id="nodoCalMes">Calendario</span></div>
+        <div class="nbody"><div class="mcal" id="nodoCalGrid"></div><div class="mfoot" id="nodoCalTxt"></div></div>
+      </div>
       <div class="timerchip" id="timerchip" hidden>
         <span>⏱</span><span class="tlabel" id="tlabel"></span><span id="timer">00:00</span><button id="timerX" title="Cancelar">✕</button>
       </div>
@@ -122,9 +130,9 @@
     </div>
   </div>
 
-  <script src="orb.js?v=6"></script>
-  <script src="jarvis.js?v=6"></script>
-  <script src="extra.js?v=6"></script>
-  <script src="apps.js?v=6"></script>
+  <script src="orb.js?v=7"></script>
+  <script src="jarvis.js?v=7"></script>
+  <script src="extra.js?v=7"></script>
+  <script src="apps.js?v=7"></script>
 </body>
 </html>

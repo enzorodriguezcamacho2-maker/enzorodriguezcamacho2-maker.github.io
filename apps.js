@@ -111,6 +111,7 @@ function calAnadir(p) {
   const l = calLeer(); l.push(ev); l.sort(calOrden); calGuardar(l);
   calSel = ev.fecha; calVista = new Date(p.fecha.getFullYear(), p.fecha.getMonth(), 1);
   const cuando = fechaLarga(p.fecha) + (ev.hora ? " a las " + ev.hora : "");
+  nodoCalAnadir(ev);
   responder("📅 Apuntado en tu calendario", ev.titulo + "\n" + capital(cuando), {
     voz: "Apuntado: " + ev.titulo + ", el " + cuando,
     botones: [
@@ -323,7 +324,6 @@ async function mapaBuscar(q, callado) {
     const nombre = p.name || p.display_name.split(",")[0];
     mapa.flyToBounds([[b[0], b[2]], [b[1], b[3]]], { duration: 2.2, maxZoom: 16, padding: [40, 40] });
     mapaMarca(lat, lon);
-    homeLugar(nombre, lat, lon, true);
     mapaInfo(nombre, p.display_name.split(",").slice(1, 4).join(",").trim(), lat, lon);
     if (!callado) hablar("Aquí tienes " + nombre);
   } catch (e) {
@@ -389,7 +389,7 @@ function apps(t, n, o) {
   m = o.match(/^(?:b[uú]sca(?:me)?|ens[eé][ñn]ame|mu[eé]strame|p[oó]n(?:me)?|localiza|abre)\s+(?:en\s+el\s+mapa|el\s+mapa\s+de|en\s+(?:google\s+)?maps)\s+(.+)$/i)
     || o.match(/^(?:b[uú]sca(?:me)?|ens[eé][ñn]ame|mu[eé]strame|localiza)\s+(.+?)\s+en\s+(?:el\s+mapa|(?:google\s+)?maps)$/i)
     || o.match(/^(?:mapa\s+de|ll[eé]vame\s+a|vamos\s+a|vuela\s+a|d[oó]nde\s+(?:est[aá]|queda))\s+(.+?)(?:\s+en\s+el\s+mapa)?$/i);
-  if (m) { mapaBuscar(m[1]); return true; }
+  if (m) { nodoMapaBuscar(m[1]); return true; }
 
   return false;
 }
@@ -413,29 +413,138 @@ new MutationObserver(() => $("app").classList.toggle("con-respuesta", !$("reply"
   .observe($("reply"), { attributes: true, attributeFilter: ["hidden"] });
 
 
-// ================== MINIMAPA EN LA PANTALLA PRINCIPAL ==================
+// ================== RED: MINI PANTALLAS CONECTADAS AL ORBE ==================
+const NODOS = { nodoMapa: "#3ee6a8", nodoCal: "#8b7bff" };
+const ocultarT = {};
+const enPanel = () => $("app").classList.contains("con-panel");
+
+function redPintar() {
+  const st = document.querySelector(".stage"), svg = $("red");
+  const r0 = st.getBoundingClientRect(); if (!r0.width) return;
+  const cx = r0.width / 2, cy = r0.height / 2, R = Math.min(r0.width, r0.height) * 0.27;
+  svg.setAttribute("viewBox", "0 0 " + r0.width + " " + r0.height);
+  for (const id in NODOS) {
+    let g = svg.querySelector('[data-n="' + id + '"]');
+    if (!g) {
+      g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.dataset.n = id; g.style.setProperty("--c", NODOS[id]);
+      g.innerHTML = '<path class="base" pathLength="1"/><path class="flujo"/><circle class="nudo" r="4"/><circle class="nudo" r="3"/>';
+      svg.append(g);
+    }
+    const n = $(id), r = n.getBoundingClientRect();
+    const izq = n.classList.contains("izq");
+    const ex = izq ? r.right - r0.left : r.left - r0.left, ey = Math.min(r.bottom - r0.top - 18, cy);
+    const ang = Math.atan2(ey - cy, ex - cx), sx = cx + Math.cos(ang) * R, sy = cy + Math.sin(ang) * R;
+    const mx = (sx + ex) / 2, my = Math.min(sy, ey) - 30;
+    const d = "M" + sx + " " + sy + " Q" + mx + " " + my + " " + ex + " " + ey;
+    g.querySelectorAll("path").forEach((p) => p.setAttribute("d", d));
+    const c = g.querySelectorAll("circle");
+    c[0].setAttribute("cx", ex); c[0].setAttribute("cy", ey); c[1].setAttribute("cx", sx); c[1].setAttribute("cy", sy);
+    g.classList.toggle("on", n.classList.contains("on"));
+  }
+}
+
+function nodoMostrar(id, segundos) {
+  const n = $(id);
+  redPintar();
+  requestAnimationFrame(() => { n.classList.add("on"); redPintar(); });
+  clearTimeout(ocultarT[id]);
+  ocultarT[id] = setTimeout(() => nodoOcultar(id), (segundos || 40) * 1000);
+}
+function nodoOcultar(id) {
+  if ($(id).matches(":hover")) { ocultarT[id] = setTimeout(() => nodoOcultar(id), 5000); return; }
+  $(id).classList.remove("on"); redPintar();
+}
+window.addEventListener("resize", redPintar);
+new ResizeObserver(redPintar).observe(document.querySelector(".stage"));
+
+// ----- Mini mapa -----
 let homeMap = null, homePin = null;
-function homeLugar(nombre, lat, lon, guardar) {
-  if (guardar) { try { localStorage.setItem("jarvisLugar", JSON.stringify({ nombre, lat, lon })); } catch (e) {} }
-  $("homeMapaTxt").textContent = nombre || "Mapa";
-  if (!homeMap) return;
-  homeMap.setView([lat, lon], 11, { animate: false });
-  if (homePin) homePin.remove();
-  homePin = L.marker([lat, lon], { icon: L.divIcon({ className: "pin", html: "<span></span>", iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(homeMap);
+async function nodoMapaIniciar() {
+  await cargarLeaflet();
+  if (homeMap) { homeMap.invalidateSize(); return; }
+  homeMap = L.map("homeMapa", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false })
+    .setView([40.4, -3.7], 3);
+  capaDe(CAPAS.oscuro).addTo(homeMap);
+  $("homeMapa").classList.add("oscuro");
 }
-function homeIniciar() {
-  let u = null; try { u = JSON.parse(localStorage.getItem("jarvisLugar") || "null"); } catch (e) {}
-  if (u) $("homeMapaTxt").textContent = u.nombre;
-  cargarLeaflet().then(() => {
-    homeMap = L.map("homeMapa", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false })
-      .setView(u ? [u.lat, u.lon] : [40.4, -3.7], u ? 11 : 5);
-    capaDe(CAPAS.oscuro).addTo(homeMap);
-    $("homeMapa").classList.add("oscuro");
-    if (u) homeLugar(u.nombre, u.lat, u.lon, false);
-  }).catch(() => {});
+async function nodoMapaBuscar(q) {
+  q = (q || "").trim(); if (!q) return mapaAbrir();
+  if (enPanel()) return mapaBuscar(q);
+  $("nodoMapaTxt").textContent = "Buscando " + q + "…";
+  nodoMostrar("nodoMapa");
+  try {
+    await nodoMapaIniciar();
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=es&q=" + encodeURIComponent(q));
+    const j = await r.json();
+    if (!j.length) { $("nodoMapaTxt").textContent = "No encuentro " + q; hablar("No lo encuentro"); return; }
+    const p = j[0], lat = +p.lat, lon = +p.lon, nombre = p.name || p.display_name.split(",")[0];
+    const dir = p.display_name.split(",").slice(1, 4).join(",").trim();
+    try { localStorage.setItem("jarvisLugar", JSON.stringify({ nombre, lat, lon })); } catch (e) {}
+    $("nodoMapaTxt").textContent = nombre;
+    homeMap.invalidateSize();
+    homeMap.setView(homeMap.getCenter(), 3, { animate: false });
+    setTimeout(() => homeMap.flyTo([lat, lon], 11, { duration: 2.4 }), 450);
+    if (homePin) homePin.remove();
+    homePin = L.marker([lat, lon], { icon: L.divIcon({ className: "pin", html: "<span></span>", iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(homeMap);
+    const dest = encodeURIComponent(lat + "," + lon);
+    responder("📍 " + nombre, dir || "Aquí lo tienes en el mapa.", {
+      voz: "Aquí tienes " + nombre,
+      botones: [
+        { texto: "Abrir mapa grande", accion: () => mapaBuscar(nombre, true) },
+        { texto: "Cómo llegar", url: "https://www.google.com/maps/dir/?api=1&destination=" + dest }
+      ]
+    });
+  } catch (e) { $("nodoMapaTxt").textContent = "Sin conexión"; }
 }
-$("homeMap").addEventListener("click", () => {
+$("nodoMapa").addEventListener("click", () => {
   let u = null; try { u = JSON.parse(localStorage.getItem("jarvisLugar") || "null"); } catch (e) {}
   if (u) mapaBuscar(u.nombre, true); else mapaAbrir();
 });
-setTimeout(homeIniciar, 800);
+
+// ----- Mini calendario -----
+function nodoCalPintar(y, mm, resaltar) {
+  const l = calLeer(), dias = {};
+  l.forEach((e) => { const d = deISO(e.fecha); if (d.getFullYear() === y && d.getMonth() === mm) dias[d.getDate()] = e; });
+  $("nodoCalMes").textContent = capital(MESES[mm]) + " " + y;
+  const g = $("nodoCalGrid"); g.innerHTML = "";
+  ["L", "M", "X", "J", "V", "S", "D"].forEach((d) => { const s = document.createElement("span"); s.className = "dw"; s.textContent = d; g.append(s); });
+  const off = (new Date(y, mm, 1).getDay() + 6) % 7, total = new Date(y, mm + 1, 0).getDate(), h = new Date();
+  for (let i = 0; i < off; i++) g.append(document.createElement("span"));
+  for (let d = 1; d <= total; d++) {
+    const s = document.createElement("span"); s.textContent = d; s.dataset.d = d;
+    if (h.getFullYear() === y && h.getMonth() === mm && h.getDate() === d) s.classList.add("hoy");
+    if (dias[d] && d !== resaltar) { s.classList.add("ev"); s.style.setProperty("--c", calColor(dias[d].titulo)); }
+    g.append(s);
+  }
+}
+function nodoCalAnadir(ev) {
+  if (enPanel()) return;
+  const f = deISO(ev.fecha), col = calColor(ev.titulo);
+  nodoCalPintar(f.getFullYear(), f.getMonth(), f.getDate());
+  $("nodoCalTxt").textContent = "";
+  nodoMostrar("nodoCal");
+  // La etiqueta sale del orbe y vuela hasta su día
+  setTimeout(() => {
+    const st = document.querySelector(".stage"), r0 = st.getBoundingClientRect();
+    const celda = $("nodoCalGrid").querySelector('[data-d="' + f.getDate() + '"]'); if (!celda) return;
+    const rc = celda.getBoundingClientRect();
+    const v = document.createElement("div"); v.className = "volador"; v.textContent = ev.titulo; v.style.setProperty("--c", col);
+    st.append(v);
+    const w = v.offsetWidth, hh = v.offsetHeight;
+    const x0 = r0.width / 2 - w / 2, y0 = r0.height / 2 - hh / 2;
+    const x1 = rc.left - r0.left + rc.width / 2 - w / 2, y1 = rc.top - r0.top + rc.height / 2 - hh / 2;
+    v.style.left = "0px"; v.style.top = "0px";
+    const a = v.animate([
+      { transform: "translate(" + x0 + "px," + y0 + "px) scale(.3)", opacity: 0 },
+      { transform: "translate(" + x0 + "px," + (y0 - 20) + "px) scale(1.15)", opacity: 1, offset: 0.25 },
+      { transform: "translate(" + ((x0 + x1) / 2) + "px," + (Math.min(y0, y1) - 40) + "px) scale(1)", opacity: 1, offset: 0.6 },
+      { transform: "translate(" + x1 + "px," + y1 + "px) scale(.2)", opacity: 0.2 }
+    ], { duration: 1500, easing: "cubic-bezier(.45,0,.25,1)", fill: "forwards" });
+    a.onfinish = () => {
+      v.remove();
+      celda.style.setProperty("--c", col); celda.classList.add("pop");
+      $("nodoCalTxt").textContent = f.getDate() + " · " + ev.titulo + (ev.hora ? " · " + ev.hora : "");
+    };
+  }, 900);
+}
+$("nodoCal").addEventListener("click", () => calAbrir());
