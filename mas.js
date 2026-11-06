@@ -89,6 +89,7 @@ async function geminiDirecto(partes, conHistorial) {
   // 2) Plan B: Jarvis busca los datos reales (ESPN y Google Noticias) y se los da a la IA
   transcriptEl.textContent = "📰 Buscando datos reales…";
   const datos = await datosReales(texto);
+  if (datos.sinFutbol) return "No he podido confirmar los datos de fútbol ahora mismo, y prefiero no decirte nada que no sea seguro. Prueba en un momento o abre la tabla de partidos.";
   const p3 = partes.map((p) => p.text ? { text: (datos.texto ? "DATOS REALES DE HOY (" + hoy + "), sacados ahora de " + datos.fuentes.join(" y ") + ":\n" + datos.texto + "\n\nUsa SOLO estos datos para responder; si no está la respuesta, dilo. " : "Hoy es " + hoy + ". ") + "Pregunta: " + p.text } : p);
   const res = await llamarGemini(hist.concat([{ role: "user", parts: p3 }]), false, RAPIDOS);
   return fin(res, datos.texto ? "\n\n📰 Datos de " + datos.fuentes.join(" y ") + "." : "\n\n⚠️ No he podido conseguir datos de internet: puede estar desactualizado.");

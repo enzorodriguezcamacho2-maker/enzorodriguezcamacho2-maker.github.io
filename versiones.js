@@ -1,5 +1,12 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 21, fecha: "6 nov · 23:40", titulo: "Tabla de partidos con datos confirmados", cambios: [
+    "Pantalla de fútbol como la del mapa: todos los partidos de la jornada y la clasificación completa",
+    "Botones para cambiar de liga: LaLiga, Champions, Premier, Serie A, Bundesliga, Ligue 1, LaLiga 2",
+    "Solo datos confirmados (ESPN o TheSportsDB): si no los puede confirmar, lo dice y no se inventa nada",
+    "La IA ya no responde de fútbol sin datos confirmados",
+    "Se guarda en el móvil: al preguntar sale al instante; se actualiza solo y borra lo de hace más de 2 semanas",
+    "Nuevo botón «Fútbol» en la pantalla principal (en lugar de «Enfoque», que sigue funcionando por voz)"] },
   { v: 20, fecha: "6 nov · 23:15", titulo: "Datos reales aunque Google no deje buscar", cambios: [
     "Con tu clave, Google no deja que la IA busque en internet: ahora Jarvis lo detecta",
     "Plan B: Jarvis consigue él mismo los datos reales (ESPN y Google Noticias) y se los pasa a la IA",
