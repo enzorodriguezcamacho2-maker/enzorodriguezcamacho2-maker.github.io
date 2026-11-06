@@ -47,6 +47,12 @@ class ParticleOrb {
   }
 
   setMode(m) { this.mode = m; }
+  // Cambia el color un rato (por ejemplo, verde con el mapa)
+  setTinte(hex, ms) {
+    const n = parseInt(hex.replace("#", ""), 16);
+    this.tinte = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    this.tinteHasta = performance.now() + (ms || 6000);
+  }
 
   frame(now) {
     const dt = Math.min(0.05, (now - this.last) / 1000);
@@ -55,13 +61,17 @@ class ParticleOrb {
     const t = this.t, ctx = this.ctx, w = this.w, h = this.h;
 
     // Velocidad y colores según el estado
-    const cfg = {
+    let cfg = {
       idle:      { sp: 0.18, a: [94, 231, 255],  b: [139, 123, 255] },
       listening: { sp: 0.55, a: [94, 231, 255],  b: [120, 160, 255] },
       thinking:  { sp: 1.6,  a: [180, 245, 255], b: [94, 231, 255]  },
       speaking:  { sp: 0.45, a: [139, 123, 255], b: [255, 94, 138]  }
     }[this.mode] || { sp: 0.18, a: [94, 231, 255], b: [139, 123, 255] };
 
+    if (this.tinte && now < this.tinteHasta && this.mode !== "listening") {
+      const tt = this.tinte;
+      cfg = { sp: cfg.sp, a: tt, b: [tt[0] * 0.6 + cfg.b[0] * 0.4, tt[1] * 0.6 + cfg.b[1] * 0.4, tt[2] * 0.6 + cfg.b[2] * 0.4] };
+    }
     this.speed += (cfg.sp - this.speed) * 0.05;
     this.rotY += this.speed * dt;
     for (let i = 0; i < 3; i++) {

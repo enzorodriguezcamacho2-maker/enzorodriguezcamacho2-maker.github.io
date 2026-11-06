@@ -356,6 +356,7 @@ $("mapaYo").addEventListener("click", () => {
 function apps(t, n, o) {
   let m;
   if (memoria(t, n, o)) return true;
+  if (typeof masComandos === "function" && masComandos(t, n, o)) return true;
   // Abrir paneles
   if (/^(?:abre|abrir|ver|ensename|muestrame|ensena|mira)?\s*(?:el\s+|mi\s+)?(?:calendario|agenda)$/.test(n)) { calAbrir(); return true; }
   if (/^(?:abre|abrir|ver|ensename|muestrame)?\s*(?:el\s+)?mapa$/.test(n)) { mapaAbrir(); return true; }
@@ -415,9 +416,12 @@ new MutationObserver(() => $("app").classList.toggle("con-respuesta", !$("reply"
 
 
 // ================== RED: MINI PANTALLAS CONECTADAS AL ORBE ==================
-const NODOS = { nodoMapa: "#3ee6a8", nodoCal: "#8b7bff" };
+// Cada mini pantalla ocupa una esquina libre (arriba-izq, arriba-der, abajo-izq, abajo-der)
+const NODOS = { nodoMapa: ["#3ee6a8", "tl"], nodoCal: ["#8b7bff", "tr"], nodoTiempo: ["#ffc24b", "bl"], nodoTimer: ["#5ee7ff", "br"], nodoFutbol: ["#ff5e8a", "tl"] };
+const SLOTS = ["tl", "tr", "bl", "br"];
 const ocultarT = {};
 const enPanel = () => $("app").classList.contains("con-panel");
+const nodoSlot = (n) => SLOTS.find((s) => n.classList.contains("s-" + s));
 
 function redPintar() {
   const st = document.querySelector(".stage"), svg = $("red");
@@ -427,32 +431,47 @@ function redPintar() {
   for (const id in NODOS) {
     let g = svg.querySelector('[data-n="' + id + '"]');
     if (!g) {
-      g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.dataset.n = id; g.style.setProperty("--c", NODOS[id]);
+      g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.dataset.n = id; g.style.setProperty("--c", NODOS[id][0]);
       g.innerHTML = '<path class="base" pathLength="1"/><path class="flujo"/><circle class="nudo" r="4"/><circle class="nudo" r="3"/>';
       svg.append(g);
     }
-    const n = $(id), r = n.getBoundingClientRect();
-    const izq = n.classList.contains("izq");
-    const ex = izq ? r.right - r0.left : r.left - r0.left, ey = Math.min(r.bottom - r0.top - 18, cy);
+    const n = $(id), on = n.classList.contains("on");
+    g.classList.toggle("on", on);
+    if (!on) continue;
+    const r = n.getBoundingClientRect(), sl = nodoSlot(n) || "tl";
+    const izq = sl[1] === "l", arriba = sl[0] === "t";
+    const ex = izq ? r.right - r0.left : r.left - r0.left;
+    const ey = arriba ? Math.min(r.bottom - r0.top - 18, cy) : Math.max(r.top - r0.top + 18, cy);
     const ang = Math.atan2(ey - cy, ex - cx), sx = cx + Math.cos(ang) * R, sy = cy + Math.sin(ang) * R;
-    const mx = (sx + ex) / 2, my = Math.min(sy, ey) - 30;
+    const mx = (sx + ex) / 2, my = arriba ? Math.min(sy, ey) - 30 : Math.max(sy, ey) + 30;
     const d = "M" + sx + " " + sy + " Q" + mx + " " + my + " " + ex + " " + ey;
     g.querySelectorAll("path").forEach((p) => p.setAttribute("d", d));
     const c = g.querySelectorAll("circle");
     c[0].setAttribute("cx", ex); c[0].setAttribute("cy", ey); c[1].setAttribute("cx", sx); c[1].setAttribute("cy", sy);
-    g.classList.toggle("on", n.classList.contains("on"));
   }
 }
 
 function nodoMostrar(id, segundos) {
   const n = $(id);
+  if (!n.classList.contains("on")) {
+    // Busca esquina: la preferida si está libre; si no, otra libre; si no, quita la más antigua
+    const ocupadas = {};
+    for (const k in NODOS) { const o = $(k); if (k !== id && o.classList.contains("on")) ocupadas[nodoSlot(o)] = k; }
+    let sl = NODOS[id][1];
+    if (ocupadas[sl]) sl = SLOTS.find((s) => !ocupadas[s]) || sl;
+    if (ocupadas[sl]) nodoOcultar(ocupadas[sl], true);
+    SLOTS.forEach((s) => n.classList.remove("s-" + s));
+    n.classList.add("s-" + sl);
+    n.dataset.desde = Date.now();
+  }
   redPintar();
   requestAnimationFrame(() => { n.classList.add("on"); redPintar(); });
   clearTimeout(ocultarT[id]);
-  ocultarT[id] = setTimeout(() => nodoOcultar(id), (segundos || 40) * 1000);
+  if (segundos !== 0) ocultarT[id] = setTimeout(() => nodoOcultar(id), (segundos || 40) * 1000);
 }
-function nodoOcultar(id) {
-  if ($(id).matches(":hover")) { ocultarT[id] = setTimeout(() => nodoOcultar(id), 5000); return; }
+function nodoOcultar(id, ya) {
+  clearTimeout(ocultarT[id]);
+  if (!ya && $(id).matches(":hover")) { ocultarT[id] = setTimeout(() => nodoOcultar(id), 5000); return; }
   $(id).classList.remove("on"); redPintar();
 }
 window.addEventListener("resize", redPintar);

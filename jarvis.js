@@ -191,6 +191,7 @@ async function ubicacion(nombre) {
   });
 }
 async function tiempo(lugar, cuando) {
+  if (window.ctxSet) ctxSet({ tipo: "tiempo", lugar, cuando });
   setEstado("thinking", "Consultando");
   try {
     const u = await ubicacion(lugar);
@@ -200,6 +201,7 @@ async function tiempo(lugar, cuando) {
     }
     const d = await json(`https://api.open-meteo.com/v1/forecast?latitude=${u.lat}&longitude=${u.lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=7`);
     const c = d.current, dd = d.daily;
+    if (window.nodoTiempo) nodoTiempo(u.nombre, d, cuando);
     if (cuando === "semana") {
       const lineas = dd.time.map((f, i) => {
         const [de, ic] = CODIGOS[dd.weather_code[i]] || ["", "🌡"];
@@ -258,7 +260,7 @@ function pitido() {
     setTimeout(() => ac.close(), 3000);
   } catch (e) {}
 }
-function cancelarTimer() { if (timer) clearInterval(timer.int); timer = null; $("timerchip").hidden = true; }
+function cancelarTimer() { if (timer) clearInterval(timer.int); timer = null; $("timerchip").hidden = true; if (window.nodoTimerFin) nodoTimerFin(); }
 function iniciarTimer(seg, etiqueta) {
   cancelarTimer();
   const fin = Date.now() + seg * 1000;
@@ -267,6 +269,7 @@ function iniciarTimer(seg, etiqueta) {
   const tick = () => {
     const r = Math.max(0, Math.round((fin - Date.now()) / 1000));
     $("timer").textContent = fmt(r);
+    if (window.nodoTimerTick) nodoTimerTick(r, seg, etiqueta);
     if (r <= 0) {
       cancelarTimer();
       const msg = etiqueta ? "Te recuerdo: " + etiqueta : "¡Se acabó el tiempo!";
@@ -294,6 +297,10 @@ const CHISTES = [
 ];
 
 const AYUDA = [
+  "🤖  Cualquier pregunta: «cómo se hace una tortilla», «quién ganó el último mundial»",
+  "⚽  «cómo va el Madrid», «cuándo juega el Barça», «clasificación de la liga», «partidos de hoy»",
+  "☀️  «buenos días» (tiempo, tu día y titulares), «buenas noches» (lo de mañana)",
+  "🔁  Después de una respuesta: «¿y mañana?», «¿y en Barcelona?», «¿y el Atleti?»",
   "🧠  «llámame Mbappé», «recuerda que mi equipo es el Madrid», «cuál es mi equipo», «qué recuerdas»",
   "🌐  «abre youtube», «abre github.com»",
   "🔎  «busca recetas de pasta», «pon Bad Bunny en YouTube»",
@@ -446,7 +453,8 @@ function ejecutar(ordenOriginal) {
     return;
   }
 
-  // No entendido: intenta Wikipedia si parece un tema corto
+  // No entendido: pregunta a la IA (si está configurada); si no, Wikipedia para temas cortos
+  if (typeof iaLista === "function" && iaLista() && (t.split(" ").length > 2 || (ctxVivo() && ctx.tipo === "ia"))) { preguntarIA(orden); return; }
   if (t.split(" ").length <= 4) { wiki(t); return; }
   responder("🤔 No lo tengo claro", "Aún no sé hacer eso. ¿Lo busco en Google?", {
     voz: "No sé hacer eso todavía. ¿Lo busco en Google?",
