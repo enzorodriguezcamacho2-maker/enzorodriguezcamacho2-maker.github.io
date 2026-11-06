@@ -571,7 +571,7 @@ $("nodoCal").addEventListener("click", () => calAbrir());
 
 // ================== MEMORIA ==================
 const memLeer = () => { try { return Object.assign({ nombre: "", datos: [] }, JSON.parse(localStorage.getItem("jarvisMem") || "{}")); } catch (e) { return { nombre: "", datos: [] }; } };
-const memGuardar = (m) => { try { localStorage.setItem("jarvisMem", JSON.stringify(m)); } catch (e) {} };
+function memGuardar(m) { try { localStorage.setItem("jarvisMem", JSON.stringify(m)); } catch (e) {} }
 const memNombre = () => memLeer().nombre;
 const PALABRAS_VACIAS = new Set("que cual cuales cuando donde quien como cuanto cuanta es son era mi mis el la los las de del un una y a en me te se lo le por para con sabes dime tengo".split(" "));
 const claves = (s) => quitarTildes(s.toLowerCase()).replace(/[^a-z0-9ñ ]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !PALABRAS_VACIAS.has(w));

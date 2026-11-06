@@ -457,3 +457,12 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
 .nfutbol .marcador small.vivo { color: #3ee6a8; animation: parpadeo 1.2s infinite; }
 @keyframes parpadeo { 50% { opacity: .45; } }
 .timerchip { display: none !important; }
+
+/* Móvil: mini pantallas algo más pequeñas */
+@media (max-width: 480px) {
+  .nodo { width: 33%; border-radius: 14px; }
+  .nhead { font-size: 10px; padding: 6px 8px 4px; }
+  .ntiempo .tico { font-size: 24px; } .ntiempo b { font-size: 18px; } .ntiempo small { font-size: 9px; }
+  .ntimer svg { width: 72px; height: 72px; } .ntimer b { font-size: 14px; }
+  .nfutbol img { width: 24px; height: 24px; } .nfutbol .marcador b { font-size: 16px; }
+}

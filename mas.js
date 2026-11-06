@@ -328,17 +328,50 @@ async function rutina(manana) {
   responder("☀️ " + saludo + (nom ? ", " + nom : ""), lineas.join("\n"), { voz: voz.join(" ") });
 }
 
-// ================== CALENDARIO → MÓVIL (sincroniza con el script) ==================
-let syncT = null;
-const _calGuardar = calGuardar;
-calGuardar = function (l) { _calGuardar(l); clearTimeout(syncT); syncT = setTimeout(calSync, 1500); };
-async function calSync() {
+// ================== MISMO JARVIS EN EL MÓVIL Y EN EL CHROMEBOOK ==================
+// El calendario y la memoria se guardan también en tu script de Google.
+// Al abrir Jarvis en cualquier aparato, se trae la versión más nueva.
+const SYNC = {
+  CAL: { clave: "jarvisCal", leer: () => { const hace = fechaISO(sumarDias(hoy0(), -7)); return calLeer().filter((e) => e.fecha >= hace).slice(0, 70).map((e) => ({ id: e.id, fecha: e.fecha, hora: e.hora || "", titulo: String(e.titulo).slice(0, 60), avisado: e.avisado ? 1 : 0 })); } },
+  MEM: { clave: "jarvisMem", leer: () => memLeer() }
+};
+const syncTs = (k) => +(localStorage.getItem("jarvisTs_" + k) || 0);
+const syncT = {};
+function syncSubir(k) {
+  localStorage.setItem("jarvisTs_" + k, Date.now());
   if (!iaLista()) return;
-  const hoy = fechaISO(new Date());
-  const datos = calLeer().filter((e) => e.fecha >= hoy).slice(0, 60).map((e) => ({ f: e.fecha, h: e.hora || "", t: e.titulo.slice(0, 60) }));
-  try { await script({ accion: "cal", datos: JSON.stringify(datos) }); } catch (e) {}
+  clearTimeout(syncT[k]);
+  syncT[k] = setTimeout(() => {
+    fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "guardar", k, ts: syncTs(k), v: SYNC[k].leer() }) }).catch(() => {});
+  }, 1200);
 }
-setTimeout(calSync, 4000);
+let bajando = false;
+async function syncBajar() {
+  if (!iaLista() || bajando) return;
+  bajando = true;
+  try {
+    const d = await script({ accion: "leer" });
+    for (const k of ["CAL", "MEM"]) {
+      const srv = d[k];
+      if (srv && srv.ts > syncTs(k)) {
+        localStorage.setItem(SYNC[k].clave, JSON.stringify(srv.v));
+        localStorage.setItem("jarvisTs_" + k, srv.ts);
+        if (k === "CAL") { calPintarTile(); if (!$("panelCal").hidden) calPintar(); }
+        if (k === "MEM") saludoInicial();
+      } else if (!srv && syncTs(k)) syncSubir(k); // el script aún no lo tiene: súbelo
+    }
+  } catch (e) {}
+  bajando = false;
+}
+const _calGuardar = calGuardar;
+calGuardar = function (l) { _calGuardar(l); syncSubir("CAL"); };
+const _memGuardar = memGuardar;
+memGuardar = function (m) { _memGuardar(m); syncSubir("MEM"); };
+// Primera vez: si ya tenías cosas guardadas, cuentan como cambio local
+["CAL", "MEM"].forEach((k) => { if (!syncTs(k) && localStorage.getItem(SYNC[k].clave)) localStorage.setItem("jarvisTs_" + k, 1); });
+setTimeout(syncBajar, 1500);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) syncBajar(); });
+setInterval(syncBajar, 5 * 60 * 1000);
 
 // ================== COMANDOS NUEVOS ==================
 function masComandos(t, n, o) {
