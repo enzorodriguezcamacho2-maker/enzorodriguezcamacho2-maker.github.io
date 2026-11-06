@@ -68,7 +68,8 @@ async function ajPintar() {
   est.className = "estado " + (k ? "ok" : scriptListo() ? "medio" : "no");
   $("iaClaveTxt").textContent = k ? ocultarClave(k) : scriptListo() ? "La del script de Google" : "Sin clave";
   $("iaModelo").textContent = u.modelo ? (NOM_MOD[u.modelo] || u.modelo) : activa ? "Automático" : "—";
-  $("iaBusqueda").textContent = !activa ? "—" : u.web ? "Activada ✓" : "Activada (aún sin usar)";
+  const eb = localStorage.getItem("jarvisIaBusqueda") || "";
+  $("iaBusqueda").textContent = !k ? (activa ? "Vía script" : "—") : eb === "ok" ? "Funciona ✓" : eb.startsWith("fallo") ? "Falló la última vez ⚠️" : "Lista (aún sin usar)";
   $("iaUltimo").textContent = hace(u.ultIA);
   const iaHoy = (u.dias[hoy] || {}).ia || 0;
   $("usoIaHoy").textContent = iaHoy;
@@ -98,6 +99,8 @@ async function ajPintar() {
   punto("conIA", k ? "ok" : scriptListo() ? "medio" : "no", k ? "Con tu clave · " + (u.ultIA ? "usada " + hace(u.ultIA).toLowerCase() : "lista") : scriptListo() ? "A través del script de Google" : "Sin conectar: pon tu clave arriba");
   const sync = +localStorage.getItem("jarvisUltSync") || 0;
   punto("conScript", scriptListo() ? (sync ? "ok" : "medio") : "no", scriptListo() ? (sync ? "Conectado · sincronizado " + hace(sync).toLowerCase() : "Configurado, sin respuesta todavía") : "No configurado (opcional: avisos al móvil y compartir datos)");
+  const es = localStorage.getItem("jarvisEspn") || "";
+  punto("conEspn", es === "ok" ? "ok" : es ? (scriptListo() ? "medio" : "no") : "medio", es === "ok" ? "Funciona: partidos y clasificaciones al instante" : es ? "Bloqueado en este navegador · " + (scriptListo() ? "uso el script" : k ? "lo resuelve la IA (más lento)" : "pon la clave de IA") : "Aún sin usar");
   punto("conTelegram", scriptListo() && sync ? "ok" : "no", scriptListo() && sync ? "Resumen 7:30 · avisos de eventos y goles" : "Necesita el script de Google");
   const perm = async (n) => { try { return (await navigator.permissions.query({ name: n })).state; } catch (e) { return "?"; } };
   const txtPerm = { granted: ["ok", "Permitido"], denied: ["no", "Bloqueado · actívalo en el candado de la barra"], prompt: ["medio", "Te lo pedirá la primera vez"], "?": ["medio", "Desconocido"] };

@@ -20,27 +20,52 @@ function sistemaIA() {
     (mem.equipo ? "Su equipo de fútbol es el " + mem.equipo.nombre + ". " : "") +
     ((mem.datos || []).length ? "Cosas que te pidió recordar: " + mem.datos.join(" | ") + ". " : "");
 }
+// ¿La pregunta necesita datos de hoy? Entonces se busca en Google (más lento pero actualizado)
+const RE_ACTUAL = /partid|jornada|liga|champions|resultad|clasific|puesto|tabla|gol|fichaj|noticia|hoy|ma[ñn]ana|ayer|ahora|actual|[uú]ltim|pr[oó]xim|esta semana|este finde|precio|cu[aá]nto cuesta|cotiza|bolsa|elecci|gan[oó]|qui[eé]n gan|estreno|concierto|tiempo en|temperatura|2025|2026|2027|presidente|ceo|sigue siendo|todav[ií]a/i;
+const sinThink = new Set();
+const conTiempo = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
 async function geminiDirecto(partes, conHistorial) {
-  const contents = (conHistorial ? iaHist.slice(-8).map((m) => ({ role: m.r === "j" ? "model" : "user", parts: [{ text: m.t.slice(0, 600) }] })) : []).concat([{ role: "user", parts: partes }]);
+  const texto = partes.map((p) => p.text || "").join(" ");
+  const buscar = RE_ACTUAL.test(texto) && !partes.some((p) => p.inline_data);
+  let partesFin = partes;
+  if (buscar) {
+    const hoy = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    partesFin = partes.map((p) => p.text ? { text: p.text + "\n\n(Hoy es " + hoy + ". Busca en Google información de hoy. Si es fútbol, da la jornada o los partidos que se juegan a partir de hoy, no los de la jornada anterior, con día y hora de España.)" } : p);
+    transcriptEl.textContent = "🔎 Buscando en Google…";
+  }
+  const contents = (conHistorial ? iaHist.slice(-6).map((m) => ({ role: m.r === "j" ? "model" : "user", parts: [{ text: m.t.slice(0, 500) }] })) : []).concat([{ role: "user", parts: partesFin }]);
+  // Rápido primero cuando no hace falta buscar; el modelo mejor primero cuando sí
+  const modelos = buscar ? ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.5-flash-lite"] : ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+  const intentos = buscar ? [true, false] : [false];
   let ultimo = "";
-  for (const buscar of [true, false]) {
-    for (const mod of MODELOS_IA) {
-      const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] } };
-      if (buscar) cuerpo.tools = [{ google_search: {} }];
-      let r;
-      try {
-        r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo) });
-      } catch (e) { ultimo = "red"; continue; }
-      const d = await r.json().catch(() => ({}));
-      if (r.status === 400 && /API key|API_KEY/i.test(JSON.stringify(d))) throw new Error("clave");
-      if (r.status === 403) throw new Error("clave");
-      const c = d.candidates && d.candidates[0];
-      const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
-      if (txt) {
-        window.iaInfo = { modelo: mod, web: !!(c.groundingMetadata && (c.groundingMetadata.webSearchQueries || []).length), foto: partes.some((p) => p.inline_data) };
-        return txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "");
+  for (const conBusqueda of intentos) {
+    for (const mod of modelos) {
+      for (const sinPensar of (sinThink.has(mod) ? [false] : [true, false])) {
+        const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] }, generationConfig: { maxOutputTokens: 600, temperature: 0.6 } };
+        if (sinPensar) cuerpo.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        if (conBusqueda) cuerpo.tools = [{ google_search: {} }];
+        let r;
+        try {
+          r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo), signal: conTiempo(conBusqueda ? 20000 : 12000) });
+        } catch (e) { ultimo = mod + (e.name === "AbortError" ? " tardó demasiado" : " sin red"); break; }
+        const d = await r.json().catch(() => ({}));
+        const err = JSON.stringify(d.error || "");
+        if (r.status === 400 && /API key|API_KEY/i.test(err)) throw new Error("clave");
+        if (r.status === 403) throw new Error("clave");
+        if (r.status === 400 && sinPensar && /think/i.test(err)) { sinThink.add(mod); continue; } // ese modelo no acepta el ajuste: reintenta sin él
+        const c = d.candidates && d.candidates[0];
+        const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
+        if (txt) {
+          const web = !!(c.groundingMetadata && ((c.groundingMetadata.webSearchQueries || []).length || (c.groundingMetadata.groundingChunks || []).length));
+          window.iaInfo = { modelo: mod, web, foto: partes.some((p) => p.inline_data) };
+          localStorage.setItem("jarvisIaBusqueda", buscar ? (web ? "ok" : "fallo:" + (ultimo || "sin búsqueda")) : localStorage.getItem("jarvisIaBusqueda") || "");
+          let out = txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "").replace(/#+\s*/g, "");
+          if (buscar && !web) out += "\n\n⚠️ No he podido buscar en internet: puede estar desactualizado.";
+          return out;
+        }
+        ultimo = mod + " " + r.status + (d.error && d.error.message ? " " + d.error.message.slice(0, 80) : "");
+        break;
       }
-      ultimo = mod + " " + r.status;
     }
   }
   throw new Error(ultimo || "sin respuesta");
@@ -159,15 +184,23 @@ const ALIAS_EQ = {
 };
 const NOMBRES_LIGA = { "esp.1": "LaLiga", "eng.1": "Premier League", "ita.1": "Serie A", "ger.1": "Bundesliga", "fra.1": "Ligue 1", "por.1": "Liga Portugal", "esp.2": "LaLiga 2", "ned.1": "Eredivisie", "usa.1": "MLS", "uefa.champions": "Champions" };
 
+let espnRoto = false;
 async function espn(ruta) {
-  try {
-    const r = await fetch("https://site.api.espn.com" + ruta);
-    if (!r.ok) throw new Error(r.status);
-    return await r.json();
-  } catch (e) {
-    if (!scriptListo()) throw e;
-    return script({ accion: "espn", ruta });
+  if (!espnRoto) {
+    try {
+      const r = await fetch("https://site.api.espn.com" + ruta, { signal: conTiempo(7000) });
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      localStorage.setItem("jarvisEspn", "ok");
+      return d;
+    } catch (e) {
+      // Si falla (bloqueo del navegador o sin red), no lo reintenta en esta sesión: va directo a la IA
+      espnRoto = true;
+      localStorage.setItem("jarvisEspn", "fallo:" + (e.message || e.name || "bloqueado"));
+    }
   }
+  if (!scriptListo()) throw new Error("espn");
+  return script({ accion: "espn", ruta });
 }
 
 const equiposCache = {};
@@ -185,7 +218,7 @@ async function buscarEquipo(q) {
   let parcial = null;
   for (const liga of LIGAS) {
     let lista = [];
-    try { lista = await equiposDe(liga); } catch (e) { continue; }
+    try { lista = await equiposDe(liga); } catch (e) { if (espnRoto && !scriptListo()) throw e; continue; }
     for (const x of lista) {
       const t = x.team || x;
       const nombres = [t.displayName, t.shortDisplayName, t.name, t.location, t.nickname].map(normEq);
@@ -237,7 +270,7 @@ async function futbolEquipo(q, modo) {
   try {
     const e = await buscarEquipo(q);
     if (!e) {
-      if (iaLista()) return preguntarIA((modo === "proximo" ? "¿Cuándo juega " : "¿Cómo ha quedado ") + q + "?");
+      if (iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (modo === "proximo" ? "¿Cuándo juega " : "¿Cómo ha quedado ") + q + "?");
       responder("⚽ No lo encuentro", "No encuentro el equipo «" + q + "».", { voz: "No encuentro ese equipo" }); return;
     }
     const { t, liga } = e, nombre = t.shortDisplayName || t.displayName;
@@ -281,7 +314,7 @@ async function futbolEquipo(q, modo) {
       voz: "El " + nombre + " " + veredicto + ": " + base.local + " " + base.gl + ", " + base.visit + " " + base.gv + "." + (prox ? " El próximo partido es " + fechaPartido(prox.fecha) + "." : "")
     });
   } catch (e) {
-    if (iaLista()) return preguntarIA(window.ultimaOrden || ((modo === "proximo" ? "¿Cuándo juega el " : "¿Cómo ha quedado el ") + q + "?"));
+    if (iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (window.ultimaOrden || ((modo === "proximo" ? "¿Cuándo juega el " : "¿Cómo ha quedado el ") + q + "?")));
     responder("⚽ Sin datos", "No he podido consultar el fútbol ahora mismo.", { voz: "No he podido consultar el fútbol" });
   }
 }
@@ -326,7 +359,7 @@ async function futbolProximos(q) {
     const p0 = ps[0];
     responder("⚽ Próximos partidos · " + NOMBRES_LIGA[liga], lineas.join("\n"), { voz: "El próximo es " + p0.local + " contra " + p0.visit + ", " + fechaPartido(p0.fecha) + ". Te dejo el resto en pantalla." });
   } catch (e) {
-    if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Cuáles son los próximos partidos de " + NOMBRES_LIGA[liga] + "?");
+    if (iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (window.ultimaOrden || "¿Cuáles son los próximos partidos de " + NOMBRES_LIGA[liga] + "?"));
     responder("⚽ Sin datos", "No he podido consultar los partidos ahora mismo.", { voz: "No he podido consultar los partidos" });
   }
 }
@@ -347,7 +380,7 @@ async function futbolClasificacion(q) {
     const top = entradas.slice(0, 8).map((e, i) => (e.pos || i + 1) + ". " + e.eq + " · " + e.pts + " pts");
     responder("🏆 " + NOMBRES_LIGA[liga], top.join("\n"), { voz: "Líder: " + entradas[0].eq + " con " + entradas[0].pts + " puntos. Segundo, " + entradas[1].eq + " con " + entradas[1].pts + "." });
   } catch (e) {
-    if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Cómo va la clasificación de " + NOMBRES_LIGA[liga] + "?");
+    if (iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (window.ultimaOrden || "¿Cómo va la clasificación de " + NOMBRES_LIGA[liga] + "?"));
     responder("🏆 Sin datos", "No he podido traer la clasificación.", { voz: "No he podido traer la clasificación" });
   }
 }
@@ -367,10 +400,10 @@ async function futbolHoy() {
         lineas.push("  " + (p.estado === "pre" ? p.fecha.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) + "  " + p.local + " - " + p.visit : p.local + " " + p.gl + "-" + p.gv + " " + p.visit + (p.estado === "in" ? "  (" + (p.reloj || "en juego") + ")" : "")));
       });
     }
-    if (fallos === 3 && iaLista()) return preguntarIA(window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?");
+    if (fallos === 3 && iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?"));
     if (directo) nodoFutbol(directo, NOMBRES_LIGA[directo.lg], "En directo");
     responder("⚽ Partidos de hoy", lineas.length ? lineas.join("\n") : "Hoy no hay partidos de LaLiga, Champions ni Premier.", { voz: lineas.length ? "Estos son los partidos de hoy." : "Hoy no hay partidos importantes." });
-  } catch (e) { if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?"); responder("⚽ Sin datos", "No he podido consultar los partidos."); }
+  } catch (e) { if (iaLista()) return preguntarIA("Fútbol, datos actuales de hoy: " + (window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?")); responder("⚽ Sin datos", "No he podido consultar los partidos."); }
 }
 
 // ================== RUTINAS ==================
@@ -508,7 +541,8 @@ function masComandos(t, n, o) {
     if (!resto || ligaDe(resto) || /^(?:hoy|manana|finde|fin de semana|semana|esta semana|este finde)$/.test(resto)) { futbolProximos(resto); return true; }
     futbolEquipo(resto, "proximo"); return true;
   }
-  m = n.match(/^(?:clasificacion|tabla|como va la liga|como esta la liga|quien va primero)(?:\s+(?:de\s+)?(?:la\s+)?(.+))?$/);
+  m = n.match(/^(?:clasificacion|tabla|como va la liga|como esta la liga|quien va primero)(?:\s+(?:de\s+)?(?:la\s+)?(.+))?$/)
+    || (/(?:puestos|clasificacion|tabla)/.test(n) && /(?:liga|premier|champions|serie a|bundesliga|ligue)/.test(n) ? [n, n] : null);
   if (m) { futbolClasificacion(m[1] || ""); return true; }
   m = o.match(/^(?:cu[aá]ndo\s+juega|pr[oó]ximo\s+partido\s+del?|siguiente\s+partido\s+del?|a\s+qu[eé]\s+hora\s+juega|contra\s+qui[eé]n\s+juega)\s+(?:el\s+|la\s+)?(.+)$/i);
   if (m) { futbolEquipo(m[1], "proximo"); return true; }
