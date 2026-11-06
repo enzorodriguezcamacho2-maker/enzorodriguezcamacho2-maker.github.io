@@ -298,7 +298,7 @@ const CHISTES = [
 
 const AYUDA = [
   "🤖  Cualquier pregunta: «cómo se hace una tortilla», «quién ganó el último mundial»",
-  "⚽  «cómo va el Madrid», «cuándo juega el Barça», «clasificación de la liga», «partidos de hoy»",
+  "⚽  «cómo va el Madrid», «cuándo juega el Barça», «clasificación de la liga», «partidos de hoy», «próximos partidos de la liga», «partidos del finde»",
   "☀️  «buenos días» (tiempo, tu día y titulares), «buenas noches» (lo de mañana)",
   "🔁  Después de una respuesta: «¿y mañana?», «¿y en Barcelona?», «¿y el Atleti?»",
   "🧠  «llámame Mbappé», «recuerda que mi equipo es el Madrid», «cuál es mi equipo», «qué recuerdas»",
@@ -468,7 +468,10 @@ let rec = null, escuchando = false, directo = false;
 
 // Nivel de voz para que el orbe reaccione
 let audioCtx = null, micStream = null, raf = 0;
+// En Android el micrófono no se puede compartir: si lo usamos para el orbe, el reconocimiento de voz no oye nada
+const MOVIL = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 async function medirMic(on) {
+  if (MOVIL) { orb.level = on ? 0.35 : 0; return; }
   if (on && !micStream) {
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -506,6 +509,8 @@ if (!SR) {
   rec.onerror = (e) => {
     if (e.error === "not-allowed" || e.error === "service-not-allowed") { cfg.atento = false; $("optAtento").checked = false; guardarCfg(); pedirPermiso(); }
     if (e.error === "no-speech" && !cfg.atento) transcriptEl.textContent = "No te he oído. Prueba otra vez.";
+    if (e.error === "audio-capture") transcriptEl.textContent = "No encuentro el micrófono. Cierra otras apps que lo usen y prueba otra vez.";
+    if (e.error === "network") transcriptEl.textContent = "El reconocimiento de voz necesita internet. Revisa la conexión.";
   };
   rec.onresult = (e) => {
     if (hablando) return;

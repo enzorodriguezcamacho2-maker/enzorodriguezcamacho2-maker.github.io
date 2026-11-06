@@ -232,14 +232,55 @@ async function futbolEquipo(q, modo) {
   }
 }
 
+// Detecta de qué liga hablas ("" si no nombras ninguna)
+function ligaDe(q) {
+  const nq = normEq(q || "");
+  if (/premier|inglesa|inglaterra/.test(nq)) return "eng.1";
+  if (/champions|liga de campeones/.test(nq)) return "uefa.champions";
+  if (/europa league|liga europa/.test(nq)) return "uefa.europa";
+  if (/italia|italiana|serie a|calcio/.test(nq)) return "ita.1";
+  if (/bundesliga|alemana|alemania/.test(nq)) return "ger.1";
+  if (/francesa|francia|ligue/.test(nq)) return "fra.1";
+  if (/segunda|hypermotion|liga 2/.test(nq)) return "esp.2";
+  if (/portugal|portuguesa/.test(nq)) return "por.1";
+  if (/liga|laliga|espanola|espana|primera|jornada/.test(nq)) return "esp.1";
+  return "";
+}
+
+// Próximos partidos de una liga: "próximos partidos de la liga", "partidos del finde", "jornada de la Champions"
+async function futbolProximos(q) {
+  ctxSet({ tipo: "futbol", modo: "proximo" });
+  setEstado("thinking");
+  const liga = ligaDe(q) || "esp.1", nq = normEq(q || "");
+  const ymd = (d) => d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+  let desde = hoy0(), dias = 10;
+  if (/manana/.test(nq)) { desde = sumarDias(hoy0(), 1); dias = 0; }
+  else if (/hoy/.test(nq)) dias = 0;
+  else if (/finde|fin de semana/.test(nq)) { const dw = hoy0().getDay(); desde = sumarDias(hoy0(), dw === 0 ? 0 : (5 - dw + 7) % 7); dias = dw === 0 ? 0 : 3; }
+  else if (/semana/.test(nq)) dias = 7;
+  try {
+    const sb = await espn("/apis/site/v2/sports/soccer/" + liga + "/scoreboard?dates=" + ymd(desde) + "-" + ymd(sumarDias(desde, dias)) + "&limit=60");
+    const ps = (sb.events || []).map(partido).filter((p) => p.estado !== "post").sort((a, b) => a.fecha - b.fecha).slice(0, 12);
+    if (!ps.length) { responder("⚽ " + NOMBRES_LIGA[liga], "No hay partidos programados en esas fechas.", { voz: "No hay partidos en esas fechas." }); return; }
+    const lineas = []; let diaAnt = "";
+    ps.forEach((p) => {
+      const d = capital(DIAS_SEM[p.fecha.getDay()]) + " " + p.fecha.getDate();
+      if (d !== diaAnt) { lineas.push(d + ":"); diaAnt = d; }
+      lineas.push("   " + (p.estado === "in" ? "🔴 " + p.gl + "-" + p.gv + " " : p.fecha.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) + "  ") + p.local + " - " + p.visit);
+    });
+    nodoFutbol(ps[0], NOMBRES_LIGA[liga], ps.length > 1 ? "Y " + (ps.length - 1) + " partidos más" : "");
+    const p0 = ps[0];
+    responder("⚽ Próximos partidos · " + NOMBRES_LIGA[liga], lineas.join("\n"), { voz: "El próximo es " + p0.local + " contra " + p0.visit + ", " + fechaPartido(p0.fecha) + ". Te dejo el resto en pantalla." });
+  } catch (e) {
+    responder("⚽ Sin datos", "No he podido consultar los partidos ahora mismo.", { voz: "No he podido consultar los partidos" });
+  }
+}
+
 async function futbolClasificacion(q) {
   ctxSet({ tipo: "clasificacion" });
   setEstado("thinking");
-  let liga = "esp.1";
-  const nq = normEq(q || "");
-  if (/premier|inglesa|inglaterra/.test(nq)) liga = "eng.1"; else if (/italia|serie a/.test(nq)) liga = "ita.1";
-  else if (/bundesliga|alemana|alemania/.test(nq)) liga = "ger.1"; else if (/francesa|francia|ligue/.test(nq)) liga = "fra.1";
-  else if (/segunda|hypermotion|liga 2/.test(nq)) liga = "esp.2"; else if (/portugal|portuguesa/.test(nq)) liga = "por.1";
+  let liga = ligaDe(q) || "esp.1";
+  if (liga.startsWith("uefa")) liga = "esp.1";
   try {
     const d = await espn("/apis/v2/sports/soccer/" + liga + "/standings");
     const grupo = (d.children && d.children[0]) || d;
@@ -398,6 +439,15 @@ function masComandos(t, n, o) {
 
   // Fútbol
   if (/^(?:partidos de hoy|que partidos hay hoy|que partidos hay|hay futbol hoy|resultados de hoy|futbol hoy)$/.test(n)) { futbolHoy(); return true; }
+  // Próximos partidos de una liga o de un equipo
+  m = n.match(/^(?:dime\s+|ensename\s+|cuales\s+son\s+)?(?:los\s+)?(?:proximos|siguientes|proxima|siguiente|que)\s+(?:partidos?|jornada)(?:\s+hay)?(?:\s+(?:de|del|en)\s+(?:la\s+|el\s+)?(.+))?$/)
+    || n.match(/^(?:partidos|jornada|calendario)\s+(?:de|del|en)\s+(?:la\s+|el\s+|este\s+)?(.+)$/)
+    || n.match(/^(?:la\s+)?(jornada)$/);
+  if (m) {
+    const resto = m[1] || "";
+    if (!resto || ligaDe(resto) || /^(?:hoy|manana|finde|fin de semana|semana|esta semana|este finde)$/.test(resto)) { futbolProximos(resto); return true; }
+    futbolEquipo(resto, "proximo"); return true;
+  }
   m = n.match(/^(?:clasificacion|tabla|como va la liga|como esta la liga|quien va primero)(?:\s+(?:de\s+)?(?:la\s+)?(.+))?$/);
   if (m) { futbolClasificacion(m[1] || ""); return true; }
   m = o.match(/^(?:cu[aá]ndo\s+juega|pr[oó]ximo\s+partido\s+del?|siguiente\s+partido\s+del?|a\s+qu[eé]\s+hora\s+juega|contra\s+qui[eé]n\s+juega)\s+(?:el\s+|la\s+)?(.+)$/i);
