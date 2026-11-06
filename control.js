@@ -97,10 +97,11 @@ function controlComandos(n, o) {
     return true;
   }
 
-  // WhatsApp: "escríbele a mamá por WhatsApp que llego tarde", "manda un whatsapp a Pablo diciendo…", "whatsapp a Pablo: …"
-  m = oo.match(/^(?:escr[ií]be(?:le)?|m[aá]nda(?:le)?|env[ií]a(?:le)?|dile)\s+(?:un\s+)?(?:whatsapp|wasap|guasap|mensaje)\s+a\s+(.+?)\s+(?:que|diciendo(?:le)?(?:\s+que)?|:)\s*(.+)$/i)
-    || oo.match(/^(?:escr[ií]be(?:le)?|dile|m[aá]ndale)\s+a\s+(.+?)\s+(?:por|en)\s+(?:whatsapp|wasap|guasap)\s+(?:que\s+|:\s*)?(.+)$/i)
-    || oo.match(/^(?:whatsapp|wasap|guasap)\s+a\s+(.+?)\s*[:,]\s*(.+)$/i);
+  // WhatsApp: "escríbele a mamá por WhatsApp que llego tarde", "mándale un mensaje Enzo diciéndole hola",
+  // "dile a papá que ya voy", "whatsapp a Pablo: …" (da igual tildes, el "a" o el orden)
+  m = oo.match(/^(?:escr[ií]be(?:le)?|m[aá]nda(?:le)?|env[ií]a(?:le)?|dile|p[aá]sale|pon(?:le)?)\s+(?:un\s+)?(?:whatsapp|wasap|guasap|mensaje|mensajito|msg)?\s*(?:por\s+(?:whatsapp|wasap|guasap)\s+)?(?:a\s+|al\s+)?(.+?)\s*(?:,|:|\s+que\s+|\s+dici[eé]ndo(?:le)?(?:\s+que)?\s+|\s+por\s+(?:whatsapp|wasap|guasap)\s*(?:que\s+|:\s*)?)(.+)$/i)
+    || oo.match(/^(?:whatsapp|wasap|guasap|mensaje)\s+(?:a|al|para)\s+(.+?)\s*(?:[:,]|\s+que\s+|\s+dici[eé]ndo(?:le)?\s+)\s*(.+)$/i);
+  if (m && !(contacto(m[1]) || /whatsapp|wasap|guasap|mensaje|msg/i.test(oo))) m = null;
   if (m) {
     const c = contacto(m[1]), txt = m[2].trim();
     const url = c && c.tel ? "https://wa.me/" + c.tel + "?text=" + encodeURIComponent(txt) : "https://wa.me/?text=" + encodeURIComponent(txt);

@@ -1,5 +1,8 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 29, fecha: "7 nov · 00:20", titulo: "WhatsApp: entiende más formas de pedirlo", cambios: [
+    "«Mándale un mensaje Enzo diciéndole hola» (sin «a» y con tilde) ya funciona",
+    "También «dile a papá que ya voy», «pásale a mamá un mensaje…», «whatsapp a Pablo: …»"] },
   { v: 28, fecha: "7 nov · 00:15", titulo: "Contactos: como tú los escribas", cambios: [
     "Los nombres se guardan y se ven tal cual los escribes (en minúsculas si quieres)",
     "Da igual mayúsculas o tildes al nombrarlos: «mamá», «Mama» o «MAMÁ» es lo mismo",
