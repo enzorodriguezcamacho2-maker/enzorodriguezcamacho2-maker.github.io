@@ -141,14 +141,30 @@ function extra(t, n, o) {
     return true;
   }
 
-  // Pedir un tema: "tema Real Madrid" -> copia "tema: Real Madrid" y abre el bot de Telegram
+  // Guardar la clave de acceso: "configura clave XXXX"
+  m = o.match(/^configura(?:r)? (?:la )?clave\s+(\S+)/i);
+  if (m) {
+    localStorage.setItem("jarvisClave", m[1]);
+    responder("✅ Clave guardada", "Ya puedo pedir resúmenes por tema.");
+    return true;
+  }
+
+  // Pedir un resumen de un tema: "tema Real Madrid" -> Jarvis lo pide al script y muestra el resultado
   m = o.match(/^(?:pon(?:er)? el )?tema\s*:?\s+(.+)$/i);
   if (m) {
-    const texto = "tema: " + m[1].trim();
-    try { navigator.clipboard.writeText(texto); } catch (e) {}
-    abrir("https://t.me/enzo_jarvis2_bot");
-    responder("📨 Tema para Telegram", "Pega el tema en el chat de Jarvis en Telegram y envíalo: " + texto,
-      { voz: "Abro Telegram. Pega el tema y envíalo." });
+    const base = localStorage.getItem("jarvisResumenUrl");
+    const clave = localStorage.getItem("jarvisClave");
+    if (!base || !clave) {
+      responder("Falta configurar", "Di: configura resumen, con la dirección, y luego: configura clave, con tu clave.");
+      return true;
+    }
+    const tema = m[1].trim();
+    responder("📰 " + tema, "Buscando noticias sobre " + tema + "…", { voz: "Buscando noticias sobre " + tema });
+    fetch(base + "?tema=" + encodeURIComponent(tema) + "&clave=" + encodeURIComponent(clave))
+      .then(r => r.json()).then(d => {
+        if (d.error) return responder("Error", d.error);
+        responder("📰 " + tema, d.resumen || "No he encontrado nada sobre " + tema + ".");
+      }).catch(() => responder("Sin conexión", "No he podido contactar con el script. Revisa la dirección y la clave."));
     return true;
   }
 
