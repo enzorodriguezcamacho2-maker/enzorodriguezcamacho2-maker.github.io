@@ -304,7 +304,9 @@ const AYUDA = [
   "📏  «convierte 10 km a millas», «50 euros a dólares», «30 grados a fahrenheit»",
   "🌍  «qué hora es en Tokio», «traduce buenos días al inglés»",
   "📅  «cuántos días faltan para Navidad», «mi cumpleaños es el 3 de mayo»",
-  "🗺  «cómo llego a la Sagrada Familia», «farmacias cerca»",
+  "📅  «apunta el 29 examen de mates», «mañana a las 5 dentista», «qué tengo esta semana», «abre el calendario»",
+  "🗺  «búscame en el mapa París», «llévame a Roma», «abre el mapa», «cómo llego a la Sagrada Familia»",
+  "📰  «resumen» (lo último de Telegram), «tema Real Madrid» (resumen de ese tema)",
   "📰  «noticias de hoy», «noticias de fútbol»",
   "📝  «apunta comprar pan», «lee mis notas»",
   "🎲  «lanza un dado», «cara o cruz», «número al azar entre 1 y 50»"
@@ -321,7 +323,7 @@ function ejecutar(ordenOriginal) {
   const n = quitarTildes(t);
   const o = orden.replace(/[¿?¡!]/g, "").replace(/\.$/, "").trim(); // conserva mayúsculas
   guardarHistorial(orden);
-  if (extra(t, n, o)) return;
+  if (apps(t, n, o) || extra(t, n, o)) return;
   let m;
 
   // Saludos y charla
