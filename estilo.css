@@ -574,3 +574,19 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
 .ajgraf small { font-size: 0.62rem; color: var(--muted); }
 .ajcard .row.hist small { max-height: 110px; }
 .ajversion { text-align: center; font-size: 0.68rem; color: var(--muted); margin: 10px 0 4px; }
+
+/* v18: historial de versiones */
+.versiones { list-style: none; margin: 4px 0 8px; padding: 0 0 0 14px; position: relative; }
+.versiones::before { content: ""; position: absolute; left: 4px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, var(--cyan), rgba(139,123,255,0.25)); }
+.versiones > li { position: relative; padding: 6px 0 8px 10px; }
+.versiones > li::before { content: ""; position: absolute; left: -14px; top: 12px; width: 10px; height: 10px; border-radius: 50%; background: #0b0f1a; border: 2px solid #8b7bff; }
+.versiones > li.actual::before { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.vcab { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; cursor: pointer; }
+.vnum { font-size: 0.7rem; font-weight: 800; padding: 2px 7px; border-radius: 7px; color: #04060c; background: linear-gradient(135deg, var(--cyan), var(--violet)); }
+.versiones > li:not(.actual) .vnum { background: rgba(255,255,255,0.1); color: #dbe6f5; }
+.vcab b { font-size: 0.84rem; }
+.vcab small { width: 100%; font-size: 0.68rem; color: var(--muted); }
+.versiones ul { margin: 5px 0 0; padding-left: 16px; }
+.versiones ul li { font-size: 0.76rem; color: #c9d6ea; margin: 3px 0; line-height: 1.35; }
+.versiones > li.plegada ul { display: none; }
+.versiones > li.plegada .vcab::after { content: "＋"; margin-left: auto; color: var(--muted); font-size: 0.8rem; }

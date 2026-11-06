@@ -316,6 +316,7 @@ const AYUDA = [
   "🚀  «escríbele a Claude que me resuma la Segunda Guerra Mundial», «pregúntale a ChatGPT…», «abre Gemini y escribe…»",
   "💬  «escríbele a mamá por WhatsApp que llego tarde», «manda un correo a Pablo diciendo…», «llama a mamá»",
   "📇  «guarda el número de mamá 612345678», «el correo de Pablo es pablo@gmail.com», «mis contactos»",
+  "🆕  «novedades» o «historial de versiones»: qué ha cambiado en Jarvis",
   "🧠  «llámame Mbappé», «recuerda que mi equipo es el Madrid», «cuál es mi equipo», «qué recuerdas»",
   "🌐  «abre youtube», «abre github.com»",
   "🔎  «busca recetas de pasta», «pon Bad Bunny en YouTube»",

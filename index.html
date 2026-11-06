@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css?v=17">
+<link rel="stylesheet" href="estilo.css?v=18">
 </head>
 <body>
   <div class="island" id="app">
@@ -165,7 +165,7 @@
     <div class="sheet ajustes" id="sheet" hidden>
       <h4>Ajustes <button class="iconbtn" id="cerrarAjustes" title="Cerrar">✕</button></h4>
       <nav class="ajnav">
-        <a href="#ajIA">🤖 IA</a><a href="#ajVoz">🎙 Voz</a><a href="#ajPerfil">👤 Perfil</a><a href="#ajCon">🔌 Conexiones</a><a href="#ajUso">📊 Uso</a>
+        <a href="#ajIA">🤖 IA</a><a href="#ajVoz">🎙 Voz</a><a href="#ajPerfil">👤 Perfil</a><a href="#ajCon">🔌 Conexiones</a><a href="#ajUso">📊 Uso</a><a href="#ajVersiones">🆕 Versiones</a>
       </nav>
 
       <section class="ajcard" id="ajIA">
@@ -246,20 +246,26 @@
         <div class="ajbtns"><button class="ajbtn peligro" id="histBorrar">Borrar historial</button></div>
       </section>
 
+      <section class="ajcard" id="ajVersiones">
+        <header><span class="ajico" style="--c:#a3acc7">🆕</span><div><b>Historial de versiones</b><small>Todo lo que se ha hecho en Jarvis, versión a versión</small></div><span class="estado ok" id="verActual">v18</span></header>
+        <ul class="versiones" id="listaVersiones"></ul>
+      </section>
+
       <div class="row" id="filaInstalar" hidden><div>Instalar Jarvis<small>Como app, en su propia ventana</small></div>
         <button class="chip" id="instalarBtn">Instalar</button></div>
-      <p class="ajversion">Jarvis v17</p>
+      <p class="ajversion">Jarvis v18</p>
     </div>
   </div>
 
-  <script src="orb.js?v=17"></script>
-  <script src="jarvis.js?v=17"></script>
-  <script src="extra.js?v=17"></script>
-  <script src="apps.js?v=17"></script>
-  <script src="mas.js?v=17"></script>
-  <script src="vida.js?v=17"></script>
-  <script src="plus.js?v=17"></script>
-  <script src="control.js?v=17"></script>
-  <script src="ajustes.js?v=17"></script>
+  <script src="orb.js?v=18"></script>
+  <script src="jarvis.js?v=18"></script>
+  <script src="extra.js?v=18"></script>
+  <script src="apps.js?v=18"></script>
+  <script src="mas.js?v=18"></script>
+  <script src="vida.js?v=18"></script>
+  <script src="plus.js?v=18"></script>
+  <script src="control.js?v=18"></script>
+  <script src="ajustes.js?v=18"></script>
+  <script src="versiones.js?v=18"></script>
 </body>
 </html>
