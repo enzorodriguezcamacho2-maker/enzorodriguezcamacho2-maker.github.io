@@ -1,5 +1,8 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 22, fecha: "6 nov · 23:30", titulo: "Arreglo: la tabla de partidos salía vacía", cambios: [
+    "Al abrir la clasificación se guardaba una jornada vacía y luego los partidos no se buscaban («Datos de undefined»)",
+    "Ahora, si lo guardado está vacío o incompleto, vuelve a buscar los partidos"] },
   { v: 21, fecha: "6 nov · 23:40", titulo: "Tabla de partidos con datos confirmados", cambios: [
     "Pantalla de fútbol como la del mapa: todos los partidos de la jornada y la clasificación completa",
     "Botones para cambiar de liga: LaLiga, Champions, Premier, Serie A, Bundesliga, Ligue 1, LaLiga 2",

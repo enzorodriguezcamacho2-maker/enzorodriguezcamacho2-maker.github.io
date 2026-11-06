@@ -12,7 +12,7 @@ function futGuardar(c) {
   const lim = Date.now() - 14 * 86400e3; // borra partidos de hace más de 2 semanas
   for (const lg in c) {
     c[lg].partidos = (c[lg].partidos || []).filter((p) => p.t >= lim);
-    if (c[lg].act < lim) delete c[lg];
+    if (Math.max(c[lg].act || 0, c[lg].actTabla || 0) < lim) delete c[lg];
   }
   guardarLS(FUT_KEY, c);
 }
@@ -46,7 +46,8 @@ async function partidosDeFuentes(liga) {
       try { const nx = await jsonDe(base + "eventsnextleague.php?id=" + id); ronda = +((nx.events || [])[0] || {}).intRound || null; } catch (e) {}
       if (!ronda) { const ps = await jsonDe(base + "eventspastleague.php?id=" + id); ronda = (+((ps.events || [])[0] || {}).intRound || 0) + 1; }
       const rondas = await Promise.all([ronda - 1, ronda].filter((r) => r > 0).map((r) => jsonDe(base + "eventsround.php?id=" + id + "&r=" + r + "&s=" + temporada()).catch(() => ({}))));
-      const ps = rondas.flatMap((x) => x.events || []).map(deTsdb).filter((p) => p.t);
+      const vistos = new Set();
+      const ps = rondas.flatMap((x) => x.events || []).map(deTsdb).filter((p) => p.t && !vistos.has(p.local + p.visit + p.t) && vistos.add(p.local + p.visit + p.t));
       if (ps.length) return { partidos: ps, fuente: "TheSportsDB" };
     } catch (e) {}
   }
@@ -83,7 +84,7 @@ function tablaEspn(d) {
 // ---------- Caché: al instante si está guardado ----------
 // Se refresca solo: cada 12 h, o antes si había un partido en juego o que ya debería haber acabado.
 function necesitaRefresco(c) {
-  if (!c || !c.act) return true;
+  if (!c || !c.act || !c.fuente || !(c.partidos || []).length) return true;
   const edad = Date.now() - c.act;
   if (edad > 12 * 3600e3) return true;
   if (edad > 10 * 60e3 && (c.partidos || []).some((p) => p.estado === "in" || (p.estado === "pre" && p.t < Date.now() - 2 * 3600e3))) return true;
@@ -99,7 +100,7 @@ async function jornada(liga, forzar) {
     const c2 = futLeer(); c2[liga] = nuevo; futGuardar(c2);
     return nuevo;
   } catch (e) {
-    if (guardado && guardado.partidos && guardado.partidos.length) return Object.assign({ deCache: true, viejo: true }, guardado);
+    if (guardado && guardado.fuente && guardado.partidos && guardado.partidos.length) return Object.assign({ deCache: true, viejo: true }, guardado);
     throw e;
   }
 }
@@ -108,7 +109,7 @@ async function clasificacion(liga, forzar) {
   if (g && g.tabla && !forzar && Date.now() - (g.actTabla || 0) < 12 * 3600e3) return { tabla: g.tabla, fuente: g.fuenteTabla, act: g.actTabla, deCache: true };
   try {
     const r = await tablaDeFuentes(liga);
-    const c2 = futLeer(); c2[liga] = Object.assign(c2[liga] || { partidos: [], act: Date.now() }, { tabla: r.tabla, fuenteTabla: r.fuente, actTabla: Date.now() }); futGuardar(c2);
+    const c2 = futLeer(); c2[liga] = Object.assign(c2[liga] || { partidos: [] }, { tabla: r.tabla, fuenteTabla: r.fuente, actTabla: Date.now() }); futGuardar(c2);
     return { tabla: r.tabla, fuente: r.fuente, act: Date.now() };
   } catch (e) {
     if (g && g.tabla) return { tabla: g.tabla, fuente: g.fuenteTabla, act: g.actTabla, deCache: true, viejo: true };
