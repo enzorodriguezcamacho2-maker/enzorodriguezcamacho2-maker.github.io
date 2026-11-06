@@ -1,5 +1,11 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 27, fecha: "7 nov · 00:10", titulo: "Agenda de contactos", cambios: [
+    "Nueva pantalla «Contactos»: di «mis contactos» o entra desde Ajustes → Tu perfil",
+    "Pega todos tus números de golpe, uno por línea («Mamá 612345678»)",
+    "Importa contactos directamente de la agenda del móvil o de un archivo .vcf",
+    "Buscador, botones de WhatsApp y llamar, editar y borrar",
+    "Luego: «escríbele a mamá por WhatsApp que…» abre su chat con el mensaje listo"] },
   { v: 26, fecha: "6 nov · 23:59", titulo: "Botones nuevos y arreglos de las mini pantallas", cambios: [
     "Botones de la pantalla principal rediseñados: icono grande de color y nombre debajo, sin textos cortados",
     "Cada mini pantalla tiene su ✕ para quitarla (antes la del tiempo no se podía cerrar)",

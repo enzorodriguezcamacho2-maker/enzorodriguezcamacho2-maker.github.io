@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css?v=26">
+<link rel="stylesheet" href="estilo.css?v=27">
 </head>
 <body>
   <div class="island" id="app">
@@ -117,6 +117,29 @@
 
 
     <!-- ===== Calendario ===== -->
+    <section class="panel" id="panelContactos" hidden>
+      <div class="phead">
+        <div class="ptitle"><small>Agenda</small><b>Contactos</b></div>
+        <div class="pnav"><span class="concuenta" id="conCuenta"></span><button class="iconbtn" id="conCerrar" title="Cerrar">✕</button></div>
+      </div>
+      <div class="conbloque">
+        <textarea id="conPegar" rows="3" placeholder="Pega aquí tus números, uno por línea:&#10;Mamá 612345678&#10;Papá 699 111 222"></textarea>
+        <div class="conbtns">
+          <button class="ajbtn primario" id="conPegarBtn">Guardar todos</button>
+          <button class="ajbtn" id="conImportarMovil" hidden>📱 Del móvil</button>
+          <label class="ajbtn">📄 Archivo .vcf<input type="file" id="conArchivo" accept=".vcf,text/vcard,text/x-vcard" hidden></label>
+        </div>
+      </div>
+      <form class="conform" id="conForm">
+        <input id="conNombre" placeholder="Nombre" autocomplete="off">
+        <input id="conTel" placeholder="Número o correo" inputmode="tel" autocomplete="off">
+        <button class="ajbtn primario" type="submit">＋</button>
+      </form>
+      <input class="conbuscar" id="conBuscar" placeholder="🔎 Buscar contacto" autocomplete="off">
+      <ul class="conlista" id="conLista"></ul>
+      <div class="conaviso" id="conAviso" hidden></div>
+    </section>
+
     <section class="panel" id="panelFutbol" hidden>
       <div class="phead">
         <div class="ptitle"><small>Fútbol</small><b id="futTitulo">LaLiga</b></div>
@@ -231,6 +254,8 @@
           <input type="text" id="optEquipo" placeholder="Ej: Real Madrid"></div>
         <label class="row"><div>Buenos días automático<small>Al abrir Jarvis por la mañana</small></div>
           <span class="switch"><input type="checkbox" id="optRutina"><span></span></span></label>
+        <div class="row"><div>Contactos<small>Para «escríbele a mamá por WhatsApp…»</small></div>
+          <button class="ajbtn" id="conVerAjustes">Abrir agenda</button></div>
         <div class="row"><div>Cosas que recuerdo<small id="memTxt">Nada todavía</small></div>
           <button class="ajbtn" id="memVer">Ver</button></div>
       </section>
@@ -261,26 +286,27 @@
       </section>
 
       <section class="ajcard" id="ajVersiones">
-        <header><span class="ajico" style="--c:#a3acc7">🆕</span><div><b>Historial de versiones</b><small>Todo lo que se ha hecho en Jarvis, versión a versión</small></div><span class="estado ok" id="verActual">v26</span></header>
+        <header><span class="ajico" style="--c:#a3acc7">🆕</span><div><b>Historial de versiones</b><small>Todo lo que se ha hecho en Jarvis, versión a versión</small></div><span class="estado ok" id="verActual">v27</span></header>
         <ul class="versiones" id="listaVersiones"></ul>
       </section>
 
       <div class="row" id="filaInstalar" hidden><div>Instalar Jarvis<small>Como app, en su propia ventana</small></div>
         <button class="chip" id="instalarBtn">Instalar</button></div>
-      <p class="ajversion">Jarvis v26</p>
+      <p class="ajversion">Jarvis v27</p>
     </div>
   </div>
 
-  <script src="orb.js?v=26"></script>
-  <script src="jarvis.js?v=26"></script>
-  <script src="extra.js?v=26"></script>
-  <script src="apps.js?v=26"></script>
-  <script src="mas.js?v=26"></script>
-  <script src="vida.js?v=26"></script>
-  <script src="plus.js?v=26"></script>
-  <script src="control.js?v=26"></script>
-  <script src="futbol.js?v=26"></script>
-  <script src="ajustes.js?v=26"></script>
-  <script src="versiones.js?v=26"></script>
+  <script src="orb.js?v=27"></script>
+  <script src="jarvis.js?v=27"></script>
+  <script src="extra.js?v=27"></script>
+  <script src="apps.js?v=27"></script>
+  <script src="mas.js?v=27"></script>
+  <script src="vida.js?v=27"></script>
+  <script src="plus.js?v=27"></script>
+  <script src="control.js?v=27"></script>
+  <script src="contactos.js?v=27"></script>
+  <script src="futbol.js?v=27"></script>
+  <script src="ajustes.js?v=27"></script>
+  <script src="versiones.js?v=27"></script>
 </body>
 </html>
