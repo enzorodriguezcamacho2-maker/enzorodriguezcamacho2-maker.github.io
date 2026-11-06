@@ -466,3 +466,15 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
   .ntimer svg { width: 72px; height: 72px; } .ntimer b { font-size: 14px; }
   .nfutbol img { width: 24px; height: 24px; } .nfutbol .marcador b { font-size: 16px; }
 }
+
+/* v12: listas en mini pantallas (gym y compra) */
+.nlista { list-style: none; margin: 0; padding: 0 10px 2px; display: flex; flex-direction: column; gap: 3px; max-height: 150px; overflow: hidden; }
+.nlista li { font-size: 11px; color: #e3ecf8; padding: 3px 8px; border-radius: 8px; background: rgba(255,255,255,0.05); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: opacity .2s; }
+.nlista li::before { content: "○ "; color: #3ee6a8; }
+.nlista li.hecho { opacity: .45; text-decoration: line-through; }
+.nlista li.hecho::before { content: "● "; }
+.nlista li.vacio { background: none; color: #8a97ad; font-size: 10px; white-space: normal; cursor: default; }
+.nlista li.vacio::before { content: ""; }
+.ngym li::before { content: ""; }
+.ngym li b { display: block; font-size: 11px; color: #fff; }
+.ngym li small { display: block; font-size: 9.5px; color: #ffb79a; }

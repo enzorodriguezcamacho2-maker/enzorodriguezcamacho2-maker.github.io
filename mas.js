@@ -392,7 +392,7 @@ async function syncBajar() {
   bajando = true;
   try {
     const d = await script({ accion: "leer" });
-    for (const k of ["CAL", "MEM"]) {
+    for (const k of Object.keys(SYNC)) {
       const srv = d[k];
       if (srv && srv.ts > syncTs(k)) {
         localStorage.setItem(SYNC[k].clave, JSON.stringify(srv.v));
