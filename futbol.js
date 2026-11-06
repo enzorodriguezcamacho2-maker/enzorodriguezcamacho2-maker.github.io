@@ -32,27 +32,40 @@ function deTsdb(e) {
   return { t, local: e.strHomeTeam, visit: e.strAwayTeam, gl: e.intHomeScore ?? "", gv: e.intAwayScore ?? "", estado: fin ? "post" : vivo ? "in" : "pre", reloj: vivo ? st : "", escL: e.strHomeTeamBadge ? e.strHomeTeamBadge + "/tiny" : "", escV: e.strAwayTeamBadge ? e.strAwayTeamBadge + "/tiny" : "", ronda: e.intRound };
 }
 
+let futDiag = []; // qué ha fallado en cada fuente (se enseña si no sale nada)
 async function partidosDeFuentes(liga) {
+  futDiag = [];
   const ymd = (d) => d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
   const ruta = "/apis/site/v2/sports/soccer/" + liga + "/scoreboard?dates=" + ymd(sumarDias(hoy0(), -8)) + "-" + ymd(sumarDias(hoy0(), 10)) + "&limit=100";
+  const limpia = (ps) => { const v = new Set(); return ps.filter((p) => p.t && !v.has(p.local + p.visit + p.t) && v.add(p.local + p.visit + p.t)); };
   // 1) ESPN directo
-  try { const d = await jsonDe("https://site.api.espn.com" + ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; } catch (e) {}
-  // 2) TheSportsDB (gratis, se puede leer desde el navegador)
+  try { const d = await jsonDe("https://site.api.espn.com" + ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; futDiag.push("ESPN: sin partidos"); } catch (e) { futDiag.push("ESPN: " + (e.message || "bloqueado")); }
+  // 2) TheSportsDB: se pide día a día (lo más fiable con la clave gratis)
   const id = TSDB[liga];
   if (id) {
-    try {
-      const base = "https://www.thesportsdb.com/api/v1/json/3/";
-      let ronda = null;
-      try { const nx = await jsonDe(base + "eventsnextleague.php?id=" + id); ronda = +((nx.events || [])[0] || {}).intRound || null; } catch (e) {}
-      if (!ronda) { const ps = await jsonDe(base + "eventspastleague.php?id=" + id); ronda = (+((ps.events || [])[0] || {}).intRound || 0) + 1; }
-      const rondas = await Promise.all([ronda - 1, ronda].filter((r) => r > 0).map((r) => jsonDe(base + "eventsround.php?id=" + id + "&r=" + r + "&s=" + temporada()).catch(() => ({}))));
-      const vistos = new Set();
-      const ps = rondas.flatMap((x) => x.events || []).map(deTsdb).filter((p) => p.t && !vistos.has(p.local + p.visit + p.t) && vistos.add(p.local + p.visit + p.t));
-      if (ps.length) return { partidos: ps, fuente: "TheSportsDB" };
-    } catch (e) {}
+    const base = "https://www.thesportsdb.com/api/v1/json/3/";
+    const dias = [...Array(17)].map((_, i) => sumarDias(hoy0(), i - 7));
+    const res = await Promise.all(dias.map((d) => jsonDe(base + "eventsday.php?d=" + fechaISO(d) + "&l=" + id, 9000).then((x) => x.events || []).catch((e) => { futDiag.push("TSDB " + d.getDate() + ": " + e.message); return []; })));
+    let ps = limpia(res.flat().map(deTsdb));
+    // Plan extra: por jornada
+    if (!ps.length) {
+      try {
+        let ronda = null;
+        try { const nx = await jsonDe(base + "eventsnextleague.php?id=" + id); ronda = +((nx.events || [])[0] || {}).intRound || null; } catch (e) {}
+        if (!ronda) { try { const pl = await jsonDe(base + "eventspastleague.php?id=" + id); ronda = (+((pl.events || [])[0] || {}).intRound || 0) + 1; } catch (e) {} }
+        if (ronda > 1) {
+          const rondas = await Promise.all([ronda - 1, ronda].map((r) => jsonDe(base + "eventsround.php?id=" + id + "&r=" + r + "&s=" + temporada()).catch(() => ({}))));
+          ps = limpia(rondas.flatMap((x) => x.events || []).map(deTsdb));
+        }
+      } catch (e) {}
+    }
+    const lim = Date.now() - 14 * 86400e3;
+    ps = ps.filter((p) => p.t >= lim);
+    if (ps.length) return { partidos: ps, fuente: "TheSportsDB" };
+    futDiag.push("TheSportsDB: sin partidos");
   }
   // 3) Tu script de Google / 4) intermediario
-  try { const d = await espn(ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; } catch (e) {}
+  try { const d = await espn(ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; } catch (e) { futDiag.push("intermediario: fallo"); }
   throw new Error("sin fuente");
 }
 
@@ -185,8 +198,8 @@ async function futPintar(forzar) {
     grupo("Resultados", jugados);
     pie.textContent = "✅ Datos de " + r.fuente + " · actualizado " + hace(r.act).toLowerCase() + (r.viejo ? " (sin conexión: guardado)" : r.deCache ? " · guardado" : "");
   } catch (e) {
-    lista.innerHTML = '<div class="futcarga">⚠️ No he podido confirmar los datos ahora mismo y no tengo nada guardado de esta liga. Prueba en un momento.</div>';
-    pie.textContent = "";
+    lista.innerHTML = '<div class="futcarga">⚠️ No he podido confirmar los datos ahora mismo y no tengo nada guardado de esta liga. Prueba con ↻ en un momento.</div>';
+    pie.textContent = futDiag.length ? "Detalle: " + [...new Set(futDiag)].slice(0, 4).join(" · ") : "";
   }
 }
 function futAbrir(liga, tab) {

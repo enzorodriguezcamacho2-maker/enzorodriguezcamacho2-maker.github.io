@@ -1,5 +1,8 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 23, fecha: "6 nov · 23:35", titulo: "Partidos: nueva forma de conseguirlos", cambios: [
+    "Los partidos se piden día a día (una semana atrás y diez días adelante), que es lo que sí deja la base de datos gratuita",
+    "Si aun así fallan, abajo sale el motivo exacto de cada fuente"] },
   { v: 22, fecha: "6 nov · 23:30", titulo: "Arreglo: la tabla de partidos salía vacía", cambios: [
     "Al abrir la clasificación se guardaba una jornada vacía y luego los partidos no se buscaban («Datos de undefined»)",
     "Ahora, si lo guardado está vacío o incompleto, vuelve a buscar los partidos"] },
