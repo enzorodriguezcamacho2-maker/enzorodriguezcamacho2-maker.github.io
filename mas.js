@@ -24,56 +24,134 @@ function sistemaIA() {
 const RE_ACTUAL = /partid|jornada|liga|champions|resultad|clasific|puesto|tabla|gol|fichaj|noticia|hoy|ma[ñn]ana|ayer|ahora|actual|[uú]ltim|pr[oó]xim|esta semana|este finde|precio|cu[aá]nto cuesta|cotiza|bolsa|elecci|gan[oó]|qui[eé]n gan|estreno|concierto|tiempo en|temperatura|2025|2026|2027|presidente|ceo|sigue siendo|todav[ií]a/i;
 const sinThink = new Set();
 const conTiempo = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
-async function geminiDirecto(partes, conHistorial) {
-  const texto = partes.map((p) => p.text || "").join(" ");
-  const buscar = RE_ACTUAL.test(texto) && !partes.some((p) => p.inline_data);
-  let partesFin = partes;
-  if (buscar) {
-    const hoy = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-    partesFin = partes.map((p) => p.text ? { text: p.text + "\n\n(Hoy es " + hoy + ". Busca en Google información de hoy. Si es fútbol, da la jornada o los partidos que se juegan a partir de hoy, no los de la jornada anterior, con día y hora de España.)" } : p);
-    transcriptEl.textContent = "🔎 Buscando en Google…";
-  }
-  const contents = (conHistorial ? iaHist.slice(-6).map((m) => ({ role: m.r === "j" ? "model" : "user", parts: [{ text: m.t.slice(0, 500) }] })) : []).concat([{ role: "user", parts: partesFin }]);
-  // Rápido primero cuando no hace falta buscar; el modelo mejor primero cuando sí
-  const modelos = buscar ? ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.5-flash-lite"] : ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"];
-  const intentos = buscar ? [true, false] : [false];
+// Llama a Gemini probando modelos; devuelve { txt, web, mod }
+async function llamarGemini(contents, conBusqueda, modelos) {
   let ultimo = "";
-  for (const conBusqueda of intentos) {
-    for (const mod of modelos) {
-      for (const sinPensar of (sinThink.has(mod) ? [false] : [true, false])) {
-        // Primer intento: sin "pensar" (más rápido). Si falla por lo que sea, se repite tal cual funcionaba en la v16.
-        const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] } };
-        if (sinPensar) cuerpo.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
-        if (conBusqueda) cuerpo.tools = [{ google_search: {} }];
-        let r;
-        try {
-          r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo), signal: conTiempo(conBusqueda ? 35000 : 25000) });
-        } catch (e) { ultimo = mod + (e.name === "AbortError" ? " tardó demasiado" : " sin red"); break; }
-        const d = await r.json().catch(() => ({}));
-        const err = JSON.stringify(d.error || "");
-        if (r.status === 400 && /API key|API_KEY/i.test(err)) throw new Error("clave");
-        if (r.status === 403) throw new Error("clave");
-        const c0 = d.candidates && d.candidates[0];
-        const vacio = !(c0 && c0.content && c0.content.parts && c0.content.parts.some((p) => p.text));
-        if (sinPensar && (!r.ok || vacio)) { sinThink.add(mod); continue; } // reintenta este modelo sin el ajuste // ese modelo no acepta el ajuste: reintenta sin él
-        const c = d.candidates && d.candidates[0];
-        const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
-        if (txt) {
-          localStorage.removeItem("jarvisIaError");
-          const web = !!(c.groundingMetadata && ((c.groundingMetadata.webSearchQueries || []).length || (c.groundingMetadata.groundingChunks || []).length));
-          window.iaInfo = { modelo: mod, web, foto: partes.some((p) => p.inline_data) };
-          localStorage.setItem("jarvisIaBusqueda", buscar ? (web ? "ok" : "fallo:" + (ultimo || "sin búsqueda")) : localStorage.getItem("jarvisIaBusqueda") || "");
-          let out = txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "").replace(/#+\s*/g, "");
-          if (buscar && !web) out += "\n\n⚠️ No he podido buscar en internet: puede estar desactualizado.";
-          return out;
-        }
-        ultimo = mod + " " + r.status + (d.error && d.error.message ? " " + d.error.message.slice(0, 120) : c0 && c0.finishReason ? " " + c0.finishReason : "");
-        localStorage.setItem("jarvisIaError", ultimo);
-        break;
+  for (const mod of modelos) {
+    for (const sinPensar of (sinThink.has(mod) ? [false] : [true, false])) {
+      // Primer intento: sin "pensar" (más rápido). Si falla, se repite tal cual funcionaba en la v16.
+      const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] } };
+      if (sinPensar) cuerpo.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
+      if (conBusqueda) cuerpo.tools = [{ google_search: {} }];
+      let r;
+      try {
+        r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo), signal: conTiempo(conBusqueda ? 30000 : 25000) });
+      } catch (e) { ultimo = mod + (e.name === "AbortError" ? " tardó demasiado" : " sin red"); break; }
+      const d = await r.json().catch(() => ({}));
+      const err = JSON.stringify(d.error || "");
+      if (r.status === 400 && /API key|API_KEY/i.test(err)) throw new Error("clave");
+      if (r.status === 403 && !conBusqueda) throw new Error("clave");
+      const c = d.candidates && d.candidates[0];
+      const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
+      if (sinPensar && (!r.ok || !txt)) { if (r.ok || /think/i.test(err)) sinThink.add(mod); continue; }
+      if (txt) {
+        const web = !!(c.groundingMetadata && ((c.groundingMetadata.webSearchQueries || []).length || (c.groundingMetadata.groundingChunks || []).length));
+        return { txt, web, mod };
       }
+      ultimo = mod + " " + r.status + (d.error && d.error.message ? ": " + d.error.message.slice(0, 140) : c && c.finishReason ? " " + c.finishReason : "");
+      break;
     }
   }
   throw new Error(ultimo || "sin respuesta");
+}
+const limpiarIA = (t) => t.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "").replace(/#+\s*/g, "").trim();
+
+async function geminiDirecto(partes, conHistorial) {
+  const texto = partes.map((p) => p.text || "").join(" ");
+  const foto = partes.some((p) => p.inline_data);
+  const buscar = RE_ACTUAL.test(texto) && !foto;
+  const hist = conHistorial ? iaHist.slice(-6).map((m) => ({ role: m.r === "j" ? "model" : "user", parts: [{ text: m.t.slice(0, 500) }] })) : [];
+  const hoy = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const RAPIDOS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+  const fin = (res, extra) => {
+    localStorage.removeItem("jarvisIaError");
+    window.iaInfo = { modelo: res.mod, web: res.web || !!extra, foto };
+    return limpiarIA(res.txt) + (extra || "");
+  };
+  if (!buscar) return fin(await llamarGemini(hist.concat([{ role: "user", parts: partes }]), false, RAPIDOS));
+
+  // 1) Búsqueda de Google dentro de Gemini (si con tu clave funciona)
+  const rotoDesde = +(localStorage.getItem("jarvisGroundingRoto") || 0);
+  if (Date.now() - rotoDesde > 6 * 3600e3) {
+    transcriptEl.textContent = "🔎 Buscando en Google…";
+    const p2 = partes.map((p) => p.text ? { text: p.text + "\n\n(Hoy es " + hoy + ". Busca en Google información de hoy. Si es fútbol, da los partidos que se juegan a partir de hoy, no los de la jornada anterior, con día y hora de España.)" } : p);
+    try {
+      const res = await llamarGemini(hist.concat([{ role: "user", parts: p2 }]), true, ["gemini-flash-latest", "gemini-flash-lite-latest"]);
+      if (res.web) { localStorage.setItem("jarvisIaBusqueda", "ok"); localStorage.removeItem("jarvisGroundingRoto"); return fin(res); }
+      localStorage.setItem("jarvisIaBusqueda", "fallo:la IA respondió sin buscar");
+    } catch (e) {
+      if (e.message === "clave") throw e;
+      localStorage.setItem("jarvisIaBusqueda", "fallo:" + e.message);
+    }
+    localStorage.setItem("jarvisGroundingRoto", Date.now());
+  }
+
+  // 2) Plan B: Jarvis busca los datos reales (ESPN y Google Noticias) y se los da a la IA
+  transcriptEl.textContent = "📰 Buscando datos reales…";
+  const datos = await datosReales(texto);
+  const p3 = partes.map((p) => p.text ? { text: (datos.texto ? "DATOS REALES DE HOY (" + hoy + "), sacados ahora de " + datos.fuentes.join(" y ") + ":\n" + datos.texto + "\n\nUsa SOLO estos datos para responder; si no está la respuesta, dilo. " : "Hoy es " + hoy + ". ") + "Pregunta: " + p.text } : p);
+  const res = await llamarGemini(hist.concat([{ role: "user", parts: p3 }]), false, RAPIDOS);
+  return fin(res, datos.texto ? "\n\n📰 Datos de " + datos.fuentes.join(" y ") + "." : "\n\n⚠️ No he podido conseguir datos de internet: puede estar desactualizado.");
+}
+
+// ================== DATOS REALES DE INTERNET (plan B de la IA) ==================
+// Páginas públicas que el navegador no deja leer directamente: se piden a través de un intermediario
+const PROXIES = [
+  (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  (u) => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u),
+  (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u)
+];
+let proxyBueno = +(localStorage.getItem("jarvisProxy") || 0);
+async function leerPorProxy(url) {
+  for (let i = 0; i < PROXIES.length; i++) {
+    const k = (proxyBueno + i) % PROXIES.length;
+    try {
+      const r = await fetch(PROXIES[k](url), { signal: conTiempo(9000) });
+      if (!r.ok) continue;
+      const t = await r.text();
+      if (!t || t.length < 50) continue;
+      proxyBueno = k; localStorage.setItem("jarvisProxy", k);
+      return t;
+    } catch (e) {}
+  }
+  throw new Error("proxy");
+}
+async function noticiasDe(q, n) {
+  const xml = await leerPorProxy("https://news.google.com/rss/search?q=" + encodeURIComponent(q) + "&hl=es&gl=ES&ceid=ES:es");
+  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  return [...doc.querySelectorAll("item")].slice(0, n || 8).map((it) => {
+    const f = new Date(it.querySelector("pubDate")?.textContent || "");
+    return "- " + (it.querySelector("title")?.textContent || "") + (isNaN(f) ? "" : " [" + f.toLocaleDateString("es-ES", { day: "numeric", month: "short" }) + "]");
+  });
+}
+const RE_FUTBOL = /partid|jornada|liga|champions|premier|gol|clasific|puesto|tabla|f[uú]tbol|madrid|bar[cç]a|barcelona|atleti|atl[eé]tico|betis|sevilla|valencia|villarreal|athletic|real sociedad|mallorca|celta|osasuna|girona|getafe|rayo|espanyol|alav[eé]s|levante|oviedo|elche|equipo|mi equipo|vamos/i;
+async function datosReales(texto) {
+  const partes = [], fuentes = [];
+  const tareas = [];
+  if (RE_FUTBOL.test(texto)) {
+    const fav = typeof memLeer === "function" && memLeer().equipo;
+    const liga = ligaDe(texto) || (fav && fav.liga) || "esp.1";
+    const ymd = (d) => d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+    tareas.push(espn("/apis/site/v2/sports/soccer/" + liga + "/scoreboard?dates=" + ymd(sumarDias(hoy0(), -3)) + "-" + ymd(sumarDias(hoy0(), 9)) + "&limit=60").then((sb) => {
+      const ps = (sb.events || []).map(partido).sort((a, b) => a.fecha - b.fecha);
+      if (!ps.length) return;
+      fuentes.push("ESPN");
+      partes.push("Partidos de " + NOMBRES_LIGA[liga] + " (últimos días y próximos):\n" + ps.map((p) => "- " + capital(DIAS_SEM[p.fecha.getDay()]) + " " + p.fecha.getDate() + "/" + (p.fecha.getMonth() + 1) + " " + p.fecha.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) + ": " + p.local + " - " + p.visit + (p.estado === "post" ? " → " + p.gl + "-" + p.gv + " (final)" : p.estado === "in" ? " → " + p.gl + "-" + p.gv + " (EN JUEGO " + (p.reloj || "") + ")" : " (por jugar)")).join("\n"));
+    }).catch(() => {}));
+    if (/clasific|puesto|tabla|l[ií]der|primero|va la liga/i.test(texto)) {
+      tareas.push(espn("/apis/v2/sports/soccer/" + (liga.startsWith("uefa") ? "esp.1" : liga) + "/standings").then((d) => {
+        const g = (d.children && d.children[0]) || d;
+        const ent = ((g.standings || {}).entries || []).map((e) => { const st = {}; (e.stats || []).forEach((x) => { st[x.name] = x.value; }); return { eq: e.team.displayName, pts: st.points, pj: st.gamesPlayed, pos: st.rank }; }).sort((a, b) => (a.pos || 99) - (b.pos || 99));
+        if (!ent.length) return;
+        if (!fuentes.includes("ESPN")) fuentes.push("ESPN");
+        partes.push("Clasificación actual:\n" + ent.map((e, i) => (e.pos || i + 1) + ". " + e.eq + " " + e.pts + " pts (" + e.pj + " PJ)").join("\n"));
+      }).catch(() => {}));
+    }
+  }
+  const q = texto.replace(/^(?:f[uú]tbol, datos actuales de hoy:\s*)/i, "").replace(/\b(?:dime|ponme|p[oó]nmelos|dame|por favor|jarvis|oye|quiero saber)\b/gi, " ").replace(/\s+/g, " ").trim();
+  tareas.push(noticiasDe(q, 8).then((l) => { if (l.length) { fuentes.push("Google Noticias"); partes.push("Titulares recientes sobre «" + q + "»:\n" + l.join("\n")); } }).catch(() => {}));
+  await Promise.all(tareas);
+  return { texto: partes.join("\n\n"), fuentes };
 }
 async function script(params) {
   const q = Object.entries(Object.assign({ clave: scriptClave() }, params)).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
@@ -191,21 +269,19 @@ const NOMBRES_LIGA = { "esp.1": "LaLiga", "eng.1": "Premier League", "ita.1": "S
 
 let espnRoto = false;
 async function espn(ruta) {
+  const url = "https://site.api.espn.com" + ruta;
   if (!espnRoto) {
     try {
-      const r = await fetch("https://site.api.espn.com" + ruta, { signal: conTiempo(7000) });
+      const r = await fetch(url, { signal: conTiempo(7000) });
       if (!r.ok) throw new Error(r.status);
       const d = await r.json();
       localStorage.setItem("jarvisEspn", "ok");
       return d;
-    } catch (e) {
-      // Si falla (bloqueo del navegador o sin red), no lo reintenta en esta sesión: va directo a la IA
-      espnRoto = true;
-      localStorage.setItem("jarvisEspn", "fallo:" + (e.message || e.name || "bloqueado"));
-    }
+    } catch (e) { espnRoto = true; } // bloqueado en este navegador: no lo reintenta en esta sesión
   }
-  if (!scriptListo()) throw new Error("espn");
-  return script({ accion: "espn", ruta });
+  if (scriptListo()) { try { const d = await script({ accion: "espn", ruta }); if (!d.error) { localStorage.setItem("jarvisEspn", "script"); return d; } } catch (e) {} }
+  try { const d = JSON.parse(await leerPorProxy(url)); localStorage.setItem("jarvisEspn", "proxy"); return d; }
+  catch (e) { localStorage.setItem("jarvisEspn", "fallo:bloqueado"); throw new Error("espn"); }
 }
 
 const equiposCache = {};
@@ -223,7 +299,7 @@ async function buscarEquipo(q) {
   let parcial = null;
   for (const liga of LIGAS) {
     let lista = [];
-    try { lista = await equiposDe(liga); } catch (e) { if (espnRoto && !scriptListo()) throw e; continue; }
+    try { lista = await equiposDe(liga); } catch (e) { if (espnRoto) throw e; continue; }
     for (const x of lista) {
       const t = x.team || x;
       const nombres = [t.displayName, t.shortDisplayName, t.name, t.location, t.nickname].map(normEq);

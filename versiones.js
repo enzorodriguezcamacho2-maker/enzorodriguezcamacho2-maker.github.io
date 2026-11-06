@@ -1,5 +1,11 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 20, fecha: "6 nov · 23:15", titulo: "Datos reales aunque Google no deje buscar", cambios: [
+    "Con tu clave, Google no deja que la IA busque en internet: ahora Jarvis lo detecta",
+    "Plan B: Jarvis consigue él mismo los datos reales (ESPN y Google Noticias) y se los pasa a la IA",
+    "Los partidos y la clasificación salen de ESPN con resultados y horarios de verdad",
+    "Debajo de la respuesta pone de dónde salen los datos",
+    "Si Google sigue sin dejar buscar, no pierde tiempo reintentándolo durante 6 horas"] },
   { v: 19, fecha: "6 nov · 23:05", titulo: "Arreglo: la IA volvía a no responder", cambios: [
     "La v17 mandaba a la IA un ajuste de velocidad que con tu clave dejaba la respuesta vacía",
     "Ahora, si ese ajuste falla, repite la pregunta exactamente como en la v16 (que funcionaba)",
