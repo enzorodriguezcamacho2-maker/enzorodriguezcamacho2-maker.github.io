@@ -337,7 +337,7 @@ function abrirCamara(pregunta) { fotoPregunta = pregunta || ""; fotoInput.value 
 $("camBtn").addEventListener("click", () => abrirCamara(entrada.value.trim()));
 fotoInput.addEventListener("change", async () => {
   const f = fotoInput.files[0]; if (!f) return;
-  if (!iaLista()) { responder("📷 Falta la IA", "Para mirar fotos necesito tu clave. Di «configura clave …»."); return; }
+  if (!iaLista()) { responder("📷 Falta la IA", "Para mirar fotos necesito tu clave de IA. Ponla en Ajustes (la rueda de arriba)."); return; }
   setEstado("thinking");
   transcriptEl.textContent = "Mirando la foto…";
   try {
@@ -347,8 +347,14 @@ fotoInput.addEventListener("change", async () => {
     c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
     const datos = c.toDataURL("image/jpeg", 0.8);
     const q = fotoPregunta && !/^(?:que es esto|mira esto|abre la camara|haz una foto|hazme una foto|camara|foto)$/.test(quitarTildes(fotoPregunta.toLowerCase())) ? fotoPregunta : "¿Qué es esto? Dímelo en pocas frases y, si es útil, añade un consejo.";
-    const r = await fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "foto", imagen: datos.split(",")[1], tipo: "image/jpeg", q, nombre: nombreUsuario() }) });
-    const d = await r.json();
+    let d;
+    if (geminiClave()) {
+      try { d = { respuesta: await geminiDirecto([{ inline_data: { mime_type: "image/jpeg", data: datos.split(",")[1] } }, { text: q }], false) }; }
+      catch (err) { d = { error: err.message === "clave" ? "Tu clave de IA no es válida. Revísala en Ajustes." : "La IA no ha respondido. Prueba otra vez." }; }
+    } else {
+      const r = await fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "foto", imagen: datos.split(",")[1], tipo: "image/jpeg", q, nombre: nombreUsuario() }) });
+      d = await r.json();
+    }
     entrada.value = "";
     if (d.respuesta) { iaHist.push({ r: "u", t: "[foto] " + q }, { r: "j", t: d.respuesta }); ctxSet({ tipo: "ia" }); responder("📷 Esto es lo que veo", d.respuesta, { imagen: datos }); }
     else responder("📷 No he podido", d.error || "Actualiza el script de Google para poder mirar fotos.", { imagen: datos });
@@ -369,8 +375,8 @@ async function favPoner(q) {
   if (!e) { responder("⚽ No lo encuentro", "No encuentro el equipo «" + q + "»."); return; }
   const fav = { nombre: e.t.shortDisplayName || e.t.displayName, id: String(e.t.id), liga: e.liga, escudo: (e.t.logos && e.t.logos[0] && e.t.logos[0].href) || e.t.logo || "" };
   const mem = memLeer(); mem.equipo = fav; memGuardar(mem);
-  if (iaLista()) script({ accion: "fav", id: fav.id, liga: fav.liga, nombre: fav.nombre }).catch(() => {});
-  responder("⚽ ¡Aúpa " + fav.nombre + "!", "Tu equipo es el " + fav.nombre + ".\nDi «cómo vamos» o «cuándo jugamos». Te avisaré de los goles" + (iaLista() ? " aquí y en el móvil." : " aquí."), { voz: "Hecho. Tu equipo es el " + fav.nombre + ". Te avisaré de cada gol." });
+  if (scriptListo()) script({ accion: "fav", id: fav.id, liga: fav.liga, nombre: fav.nombre }).catch(() => {});
+  responder("⚽ ¡Aúpa " + fav.nombre + "!", "Tu equipo es el " + fav.nombre + ".\nDi «cómo vamos» o «cuándo jugamos». Te avisaré de los goles" + (scriptListo() ? " aquí y en el móvil." : " aquí."), { voz: "Hecho. Tu equipo es el " + fav.nombre + ". Te avisaré de cada gol." });
   pxVivo();
 }
 function favComandos(n, o) {

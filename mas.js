@@ -3,7 +3,45 @@
 // ================== CONEXIÓN CON EL SCRIPT DE GOOGLE ==================
 const scriptBase = () => localStorage.getItem("jarvisResumenUrl") || "";
 const scriptClave = () => localStorage.getItem("jarvisClave") || "";
-const iaLista = () => !!(scriptBase() && scriptClave());
+const scriptListo = () => !!(scriptBase() && scriptClave());
+const geminiClave = () => localStorage.getItem("jarvisGemini") || "";
+const iaLista = () => !!(geminiClave() || scriptListo());
+
+// IA directa con tu propia clave de Gemini (se guarda solo en este aparato)
+const MODELOS_IA = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-3.5-flash-lite"];
+function sistemaIA() {
+  const mem = typeof memLeer === "function" ? memLeer() : { nombre: "", datos: [] };
+  const ahora = new Date().toLocaleString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return "Eres Jarvis, el asistente personal de voz del usuario, al estilo del Jarvis de Iron Man: listo, cercano y con un punto de humor. " +
+    "Responde SIEMPRE en español de España, en 1 a 4 frases cortas, porque se lee en voz alta. Sin asteriscos, sin markdown, sin emojis. " +
+    "Si preguntan por partidos, resultados, clasificaciones, noticias o cualquier dato actual, BUSCA en Google y da datos concretos (equipos, día y hora en horario de España). " +
+    "Fecha y hora actual: " + ahora + ". " + (cfg.ciudad ? "El usuario vive en " + cfg.ciudad + ". " : "") +
+    (mem.nombre ? "Llama al usuario \"" + mem.nombre + "\". " : "") +
+    (mem.equipo ? "Su equipo de fútbol es el " + mem.equipo.nombre + ". " : "") +
+    ((mem.datos || []).length ? "Cosas que te pidió recordar: " + mem.datos.join(" | ") + ". " : "");
+}
+async function geminiDirecto(partes, conHistorial) {
+  const contents = (conHistorial ? iaHist.slice(-8).map((m) => ({ role: m.r === "j" ? "model" : "user", parts: [{ text: m.t.slice(0, 600) }] })) : []).concat([{ role: "user", parts: partes }]);
+  let ultimo = "";
+  for (const buscar of [true, false]) {
+    for (const mod of MODELOS_IA) {
+      const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] } };
+      if (buscar) cuerpo.tools = [{ google_search: {} }];
+      let r;
+      try {
+        r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo) });
+      } catch (e) { ultimo = "red"; continue; }
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 400 && /API key|API_KEY/i.test(JSON.stringify(d))) throw new Error("clave");
+      if (r.status === 403) throw new Error("clave");
+      const c = d.candidates && d.candidates[0];
+      const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
+      if (txt) return txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "");
+      ultimo = mod + " " + r.status;
+    }
+  }
+  throw new Error(ultimo || "sin respuesta");
+}
 async function script(params) {
   const q = Object.entries(Object.assign({ clave: scriptClave() }, params)).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
   const r = await fetch(scriptBase() + "?" + q);
@@ -26,10 +64,22 @@ const ctxVivo = () => ctx.tipo && Date.now() - ctx.ts < 10 * 60 * 1000;
 let iaHist = [];
 async function preguntarIA(texto) {
   if (!iaLista()) {
-    responder("🤖 Falta conectar la IA", "Para que responda cualquier pregunta, di primero «configura clave …» con tu clave.", { voz: "Para responder con inteligencia artificial necesito tu clave." });
+    responder("🤖 Falta tu clave de IA", "Abre Ajustes (la rueda de arriba) y pega tu clave de Gemini en «Clave de IA».", { voz: "Para responder con inteligencia artificial necesito tu clave. Ponla en ajustes." });
     return;
   }
   setEstado("thinking");
+  if (geminiClave()) {
+    try {
+      const r = await geminiDirecto([{ text: texto }], true);
+      iaHist.push({ r: "u", t: texto }, { r: "j", t: r }); iaHist = iaHist.slice(-12);
+      ctxSet({ tipo: "ia" });
+      responder("🤖 Jarvis", r, { botones: [{ texto: "Buscar en Google", url: "https://www.google.com/search?q=" + encodeURIComponent(texto) }] });
+    } catch (e) {
+      if (e.message === "clave") responder("🤖 Clave no válida", "Google dice que tu clave de IA no vale. Revísala en Ajustes.", { voz: "Tu clave de inteligencia artificial no es válida." });
+      else responder("🤖 Sin respuesta", "La IA no ha respondido ahora mismo. Prueba en un momento.", { voz: "La inteligencia artificial no responde ahora. Prueba en un momento." });
+    }
+    return;
+  }
   const mem = typeof memLeer === "function" ? memLeer() : { nombre: "", datos: [] };
   try {
     const d = await script({
@@ -112,7 +162,7 @@ async function espn(ruta) {
     if (!r.ok) throw new Error(r.status);
     return await r.json();
   } catch (e) {
-    if (!iaLista()) throw e;
+    if (!scriptListo()) throw e;
     return script({ accion: "espn", ruta });
   }
 }
@@ -228,6 +278,7 @@ async function futbolEquipo(q, modo) {
       voz: "El " + nombre + " " + veredicto + ": " + base.local + " " + base.gl + ", " + base.visit + " " + base.gv + "." + (prox ? " El próximo partido es " + fechaPartido(prox.fecha) + "." : "")
     });
   } catch (e) {
+    if (iaLista()) return preguntarIA(window.ultimaOrden || ((modo === "proximo" ? "¿Cuándo juega el " : "¿Cómo ha quedado el ") + q + "?"));
     responder("⚽ Sin datos", "No he podido consultar el fútbol ahora mismo.", { voz: "No he podido consultar el fútbol" });
   }
 }
@@ -272,6 +323,7 @@ async function futbolProximos(q) {
     const p0 = ps[0];
     responder("⚽ Próximos partidos · " + NOMBRES_LIGA[liga], lineas.join("\n"), { voz: "El próximo es " + p0.local + " contra " + p0.visit + ", " + fechaPartido(p0.fecha) + ". Te dejo el resto en pantalla." });
   } catch (e) {
+    if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Cuáles son los próximos partidos de " + NOMBRES_LIGA[liga] + "?");
     responder("⚽ Sin datos", "No he podido consultar los partidos ahora mismo.", { voz: "No he podido consultar los partidos" });
   }
 }
@@ -292,6 +344,7 @@ async function futbolClasificacion(q) {
     const top = entradas.slice(0, 8).map((e, i) => (e.pos || i + 1) + ". " + e.eq + " · " + e.pts + " pts");
     responder("🏆 " + NOMBRES_LIGA[liga], top.join("\n"), { voz: "Líder: " + entradas[0].eq + " con " + entradas[0].pts + " puntos. Segundo, " + entradas[1].eq + " con " + entradas[1].pts + "." });
   } catch (e) {
+    if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Cómo va la clasificación de " + NOMBRES_LIGA[liga] + "?");
     responder("🏆 Sin datos", "No he podido traer la clasificación.", { voz: "No he podido traer la clasificación" });
   }
 }
@@ -300,9 +353,10 @@ async function futbolHoy() {
   setEstado("thinking");
   try {
     const lineas = [];
-    let directo = null;
+    let directo = null, fallos = 0;
     for (const lg of ["esp.1", "uefa.champions", "eng.1"]) {
-      const sb = await espn("/apis/site/v2/sports/soccer/" + lg + "/scoreboard").catch(() => ({}));
+      const sb = await espn("/apis/site/v2/sports/soccer/" + lg + "/scoreboard").catch(() => ({ fallo: 1 }));
+      if (sb.fallo) { fallos++; continue; }
       const ps = (sb.events || []).map(partido).filter((p) => p.fecha.toDateString() === new Date().toDateString());
       if (ps.length) lineas.push(NOMBRES_LIGA[lg] + ":");
       ps.forEach((p) => {
@@ -310,9 +364,10 @@ async function futbolHoy() {
         lineas.push("  " + (p.estado === "pre" ? p.fecha.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) + "  " + p.local + " - " + p.visit : p.local + " " + p.gl + "-" + p.gv + " " + p.visit + (p.estado === "in" ? "  (" + (p.reloj || "en juego") + ")" : "")));
       });
     }
+    if (fallos === 3 && iaLista()) return preguntarIA(window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?");
     if (directo) nodoFutbol(directo, NOMBRES_LIGA[directo.lg], "En directo");
     responder("⚽ Partidos de hoy", lineas.length ? lineas.join("\n") : "Hoy no hay partidos de LaLiga, Champions ni Premier.", { voz: lineas.length ? "Estos son los partidos de hoy." : "Hoy no hay partidos importantes." });
-  } catch (e) { responder("⚽ Sin datos", "No he podido consultar los partidos."); }
+  } catch (e) { if (iaLista()) return preguntarIA(window.ultimaOrden || "¿Qué partidos de fútbol hay hoy?"); responder("⚽ Sin datos", "No he podido consultar los partidos."); }
 }
 
 // ================== RUTINAS ==================
@@ -355,7 +410,7 @@ async function rutina(manana) {
     lineas.push("📅 " + (manana ? "Mañana" : "Hoy") + " no tienes nada apuntado.");
     voz.push(manana ? "Mañana no tienes nada apuntado." : "No tienes nada apuntado para hoy.");
   }
-  if (!manana && iaLista()) {
+  if (!manana && scriptListo()) {
     try {
       const d = await script({ accion: "titulares", n: 3 });
       if (d.titulares && d.titulares.length) {
@@ -380,7 +435,7 @@ const syncTs = (k) => +(localStorage.getItem("jarvisTs_" + k) || 0);
 const syncT = {};
 function syncSubir(k) {
   localStorage.setItem("jarvisTs_" + k, Date.now());
-  if (!iaLista()) return;
+  if (!scriptListo()) return;
   clearTimeout(syncT[k]);
   syncT[k] = setTimeout(() => {
     fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "guardar", k, ts: syncTs(k), v: SYNC[k].leer() }) }).catch(() => {});
@@ -388,7 +443,7 @@ function syncSubir(k) {
 }
 let bajando = false;
 async function syncBajar() {
-  if (!iaLista() || bajando) return;
+  if (!scriptListo() || bajando) return;
   bajando = true;
   try {
     const d = await script({ accion: "leer" });
@@ -467,3 +522,25 @@ function masComandos(t, n, o) {
   }
   return false;
 }
+
+// ================== CLAVE DE IA EN AJUSTES ==================
+(() => {
+  const campo = $("optGemini");
+  if (!campo) return;
+  campo.value = geminiClave();
+  const guardar = async () => {
+    const v = campo.value.trim();
+    if (v === geminiClave()) return;
+    if (!v) { localStorage.removeItem("jarvisGemini"); responder("🤖 Clave quitada", "He borrado tu clave de IA de este aparato."); return; }
+    localStorage.setItem("jarvisGemini", v);
+    setEstado("thinking");
+    try {
+      await geminiDirecto([{ text: "Di solo: listo" }], false);
+      responder("🤖 IA conectada", "Ya puedo responder cualquier pregunta, mirar fotos y buscar partidos.", { voz: "Inteligencia artificial conectada. Pregúntame lo que quieras." });
+    } catch (e) {
+      responder(e.message === "clave" ? "🤖 Clave no válida" : "🤖 Clave guardada", e.message === "clave" ? "Google dice que esa clave no vale. Cópiala otra vez desde AI Studio." : "La he guardado, pero la IA no ha respondido ahora. Prueba a preguntarme algo en un momento.");
+    }
+  };
+  campo.addEventListener("change", guardar);
+  campo.addEventListener("keydown", (e) => { if (e.key === "Enter") { campo.blur(); guardar(); } });
+})();

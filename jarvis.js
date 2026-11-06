@@ -343,6 +343,7 @@ function ejecutar(ordenOriginal) {
   const n = quitarTildes(t);
   const o = orden.replace(/[¿?¡!]/g, "").replace(/\.$/, "").trim(); // conserva mayúsculas
   guardarHistorial(orden);
+  window.ultimaOrden = orden;
   if (apps(t, n, o) || extra(t, n, o)) return;
   let m;
 
