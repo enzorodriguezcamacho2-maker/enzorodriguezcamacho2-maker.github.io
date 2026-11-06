@@ -389,3 +389,17 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
 .leaflet-control-attribution a { color: #8f99b5 !important; }
 .island.con-panel > :not(.panel) { visibility: hidden; }
 .calcell { aspect-ratio: 1 / .74; }
+
+/* v6: minimapa en la esquina de la pantalla principal */
+.homemap {
+  position: absolute; left: 6px; top: 6px; z-index: 5; width: 92px; height: 92px; padding: 0; border-radius: 18px; overflow: hidden; cursor: pointer;
+  border: 1px solid rgba(94,231,255,0.35); background: #0b0f1a; box-shadow: 0 10px 24px rgba(0,0,0,0.55), 0 0 18px rgba(94,231,255,0.12);
+  transition: transform .2s, box-shadow .2s;
+}
+.homemap:hover { transform: scale(1.06); box-shadow: 0 12px 28px rgba(0,0,0,0.6), 0 0 24px rgba(94,231,255,0.3); }
+#homeMapa { position: absolute; inset: 0; pointer-events: none; background: #0b0f1a; }
+#homeMapa.oscuro .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.95) saturate(0.6); }
+#homeMapaTxt {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 900; padding: 3px 6px; font-size: 10.5px; font-weight: 600; color: #dff8ff;
+  background: linear-gradient(transparent, rgba(4,6,13,0.9)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}

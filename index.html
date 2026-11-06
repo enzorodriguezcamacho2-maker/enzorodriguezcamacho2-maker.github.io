@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css">
+<link rel="stylesheet" href="estilo.css?v=6">
 </head>
 <body>
   <div class="island" id="app">
@@ -27,6 +27,7 @@
 
     <div class="stage">
       <canvas id="orb" title="Toca para hablar"></canvas>
+      <button class="homemap" id="homeMap" title="Abrir mapa"><div id="homeMapa"></div><span id="homeMapaTxt">Mapa</span></button>
       <div class="timerchip" id="timerchip" hidden>
         <span>⏱</span><span class="tlabel" id="tlabel"></span><span id="timer">00:00</span><button id="timerX" title="Cancelar">✕</button>
       </div>
@@ -121,9 +122,9 @@
     </div>
   </div>
 
-  <script src="orb.js"></script>
-  <script src="jarvis.js"></script>
-  <script src="extra.js"></script>
-  <script src="apps.js"></script>
+  <script src="orb.js?v=6"></script>
+  <script src="jarvis.js?v=6"></script>
+  <script src="extra.js?v=6"></script>
+  <script src="apps.js?v=6"></script>
 </body>
 </html>

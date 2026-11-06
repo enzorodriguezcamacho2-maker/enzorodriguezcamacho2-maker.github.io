@@ -297,4 +297,4 @@ $("instalarBtn").addEventListener("click", async () => {
   if (!eventoInstalar) return;
   eventoInstalar.prompt(); await eventoInstalar.userChoice; eventoInstalar = null; $("filaInstalar").hidden = true;
 });
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((r) => r.update()).catch(() => {});

@@ -323,6 +323,7 @@ async function mapaBuscar(q, callado) {
     const nombre = p.name || p.display_name.split(",")[0];
     mapa.flyToBounds([[b[0], b[2]], [b[1], b[3]]], { duration: 2.2, maxZoom: 16, padding: [40, 40] });
     mapaMarca(lat, lon);
+    homeLugar(nombre, lat, lon, true);
     mapaInfo(nombre, p.display_name.split(",").slice(1, 4).join(",").trim(), lat, lon);
     if (!callado) hablar("Aquí tienes " + nombre);
   } catch (e) {
@@ -410,3 +411,31 @@ setInterval(calPintarTile, 60000);
 $("rclose").addEventListener("click", () => { $("reply").hidden = true; });
 new MutationObserver(() => $("app").classList.toggle("con-respuesta", !$("reply").hidden))
   .observe($("reply"), { attributes: true, attributeFilter: ["hidden"] });
+
+
+// ================== MINIMAPA EN LA PANTALLA PRINCIPAL ==================
+let homeMap = null, homePin = null;
+function homeLugar(nombre, lat, lon, guardar) {
+  if (guardar) { try { localStorage.setItem("jarvisLugar", JSON.stringify({ nombre, lat, lon })); } catch (e) {} }
+  $("homeMapaTxt").textContent = nombre || "Mapa";
+  if (!homeMap) return;
+  homeMap.setView([lat, lon], 11, { animate: false });
+  if (homePin) homePin.remove();
+  homePin = L.marker([lat, lon], { icon: L.divIcon({ className: "pin", html: "<span></span>", iconSize: [14, 14], iconAnchor: [7, 7] }) }).addTo(homeMap);
+}
+function homeIniciar() {
+  let u = null; try { u = JSON.parse(localStorage.getItem("jarvisLugar") || "null"); } catch (e) {}
+  if (u) $("homeMapaTxt").textContent = u.nombre;
+  cargarLeaflet().then(() => {
+    homeMap = L.map("homeMapa", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false })
+      .setView(u ? [u.lat, u.lon] : [40.4, -3.7], u ? 11 : 5);
+    capaDe(CAPAS.oscuro).addTo(homeMap);
+    $("homeMapa").classList.add("oscuro");
+    if (u) homeLugar(u.nombre, u.lat, u.lon, false);
+  }).catch(() => {});
+}
+$("homeMap").addEventListener("click", () => {
+  let u = null; try { u = JSON.parse(localStorage.getItem("jarvisLugar") || "null"); } catch (e) {}
+  if (u) mapaBuscar(u.nombre, true); else mapaAbrir();
+});
+setTimeout(homeIniciar, 800);
