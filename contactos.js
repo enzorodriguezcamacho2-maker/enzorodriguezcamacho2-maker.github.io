@@ -34,6 +34,7 @@ function guardarVarios(lista) {
 }
 
 // ---------- Pantalla de contactos ----------
+let conEditando = null;
 const telBonito = (t) => { const s = String(t); return s.startsWith("34") && s.length === 11 ? s.slice(2).replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3") : "+" + s; };
 function pintarContactos() {
   const c = contactos(), ul = $("conLista"), filtro = normC($("conBuscar").value || "");
@@ -46,14 +47,14 @@ function pintarContactos() {
     const li = document.createElement("li");
     const av = document.createElement("span"); av.className = "conav"; av.textContent = nom.charAt(0).toUpperCase();
     const info = document.createElement("div"); info.className = "coninfo";
-    const b = document.createElement("b"); b.textContent = capital(nom);
+    const b = document.createElement("b"); b.textContent = nom;
     const sm = document.createElement("small"); sm.textContent = [x.tel ? telBonito(x.tel) : "", x.email || ""].filter(Boolean).join(" · ");
     info.append(b, sm);
     const acc = document.createElement("div"); acc.className = "conacc";
     const btn = (txt, tit, fn) => { const e = document.createElement("button"); e.textContent = txt; e.title = tit; e.addEventListener("click", fn); acc.append(e); };
     if (x.tel) btn("💬", "WhatsApp", () => window.open("https://wa.me/" + x.tel, "_blank"));
     if (x.tel) btn("📞", "Llamar", () => { location.href = "tel:+" + x.tel; });
-    btn("✏️", "Editar", () => { $("conNombre").value = capital(nom); $("conTel").value = x.tel ? telBonito(x.tel) : (x.email || ""); $("conNombre").focus(); });
+    btn("✏️", "Editar", () => { conEditando = k; $("conNombre").value = nom; $("conTel").value = x.tel ? telBonito(x.tel) : (x.email || ""); $("conNombre").focus(); });
     btn("🗑", "Borrar", () => { if (!confirmarBorrar(li)) return; const m = memLeer(); delete m.contactos[k]; memGuardar(m); pintarContactos(); });
     li.append(av, info, acc); ul.append(li);
   });
@@ -80,9 +81,11 @@ $("conForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const nom = $("conNombre").value.trim(), dato = $("conTel").value.trim();
   if (!nom || !dato) { aviso("Pon el nombre y el número"); return; }
+  if (conEditando && conEditando !== normC(nom)) { const m = memLeer(); if (m.contactos) delete m.contactos[conEditando]; memGuardar(m); }
+  conEditando = null;
   guardarVarios([/@/.test(dato) ? { nombre: nom, email: dato } : { nombre: nom, tel: dato }]);
   $("conNombre").value = ""; $("conTel").value = "";
-  aviso("✅ " + capital(nom) + " guardado"); pintarContactos();
+  aviso("✅ " + nom + " guardado"); pintarContactos();
 });
 // Importar directamente de la agenda del móvil (Chrome en Android)
 $("conImportarMovil").addEventListener("click", async () => {

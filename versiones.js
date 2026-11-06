@@ -1,5 +1,11 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 28, fecha: "7 nov · 00:15", titulo: "Contactos: como tú los escribas", cambios: [
+    "Los nombres se guardan y se ven tal cual los escribes (en minúsculas si quieres)",
+    "Da igual mayúsculas o tildes al nombrarlos: «mamá», «Mama» o «MAMÁ» es lo mismo",
+    "Entiende «mi madre» = mamá, «mi padre» = papá, «yaya» = abuela…",
+    "Si solo dices el nombre de pila, encuentra a la persona",
+    "Al editar un contacto y cambiarle el nombre, ya no se queda duplicado"] },
   { v: 27, fecha: "7 nov · 00:10", titulo: "Agenda de contactos", cambios: [
     "Nueva pantalla «Contactos»: di «mis contactos» o entra desde Ajustes → Tu perfil",
     "Pega todos tus números de golpe, uno por línea («Mamá 612345678»)",

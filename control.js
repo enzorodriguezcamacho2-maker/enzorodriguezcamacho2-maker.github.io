@@ -49,9 +49,17 @@ function abrirAsistente(clave, texto) {
 // ================== CONTACTOS ==================
 const contactos = () => memLeer().contactos || {};
 const normC = (s) => quitarTildes(String(s).toLowerCase()).replace(/^(?:a|al|la|el|mi)\s+/, "").trim();
+// Busca el contacto sin importar mayúsculas, tildes ni si dices "mi madre" o "mamá"
+const SINONIMOS = [["mama", "madre", "mami", "ma"], ["papa", "padre", "papi", "pa"], ["abuela", "yaya", "abu", "abuelita"], ["abuelo", "yayo", "abuelito"], ["hermano", "hermanito", "tete"], ["hermana", "hermanita", "tata"], ["novia", "mi amor", "cari"], ["novio"]];
 function contacto(nombre) {
-  const c = contactos(), k = normC(nombre);
-  return c[k] ? Object.assign({ nombre: c[k].n || k }, c[k]) : null;
+  const c = contactos(), k = normC(nombre).replace(/^mi\s+/, "");
+  const dar = (kk) => Object.assign({ nombre: c[kk].n || kk }, c[kk]);
+  if (c[k]) return dar(k);
+  const grupo = SINONIMOS.find((g) => g.includes(k));
+  if (grupo) { const kk = Object.keys(c).find((x) => grupo.includes(x)); if (kk) return dar(kk); }
+  const parcial = Object.keys(c).filter((x) => x.split(" ")[0] === k.split(" ")[0] || x.startsWith(k) || k.startsWith(x));
+  if (parcial.length === 1) return dar(parcial[0]);
+  return null;
 }
 function guardarContacto(nombre, datos) {
   const m = memLeer(); m.contactos = m.contactos || {};
@@ -80,12 +88,12 @@ function controlComandos(n, o) {
   // Contactos: "guarda el número de mamá 612345678", "el correo de Pablo es pablo@gmail.com"
   m = oo.match(/^(?:guarda|apunta)\s+el\s+(?:n[uú]mero|tel[eé]fono|m[oó]vil)\s+de\s+(.+?)\s*(?:,|:|es|que es)?\s*(\+?[\d\s]{9,15})$/i)
     || oo.match(/^el\s+(?:n[uú]mero|tel[eé]fono|m[oó]vil)\s+de\s+(.+?)\s+es\s+(\+?[\d\s]{9,15})$/i);
-  if (m) { const k = guardarContacto(m[1], { tel: telLimpio(m[2]) }); responder("📇 Contacto guardado", capital(k) + ": " + m[2].trim(), { voz: "Guardado el número de " + k }); return true; }
+  if (m) { const k = guardarContacto(m[1], { tel: telLimpio(m[2]) }); responder("📇 Contacto guardado", k + ": " + m[2].trim(), { voz: "Guardado el número de " + k }); return true; }
   m = oo.match(/^(?:guarda\s+)?el\s+(?:correo|email|mail|e-mail)\s+de\s+(.+?)\s*(?:,|:|es)?\s+([\w.+-]+@[\w-]+\.[\w.]+)$/i);
-  if (m) { const k = guardarContacto(m[1], { email: m[2] }); responder("📇 Contacto guardado", capital(k) + ": " + m[2], { voz: "Guardado el correo de " + k }); return true; }
+  if (m) { const k = guardarContacto(m[1], { email: m[2] }); responder("📇 Contacto guardado", k + ": " + m[2], { voz: "Guardado el correo de " + k }); return true; }
   if (/^(?:mis\s+)?contactos$/.test(n)) {
     const c = contactos(), l = Object.keys(c);
-    responder("📇 Tus contactos", l.length ? l.map((k) => "• " + capital(c[k].n || k) + (c[k].tel ? " · " + c[k].tel : "") + (c[k].email ? " · " + c[k].email : "")).join("\n") : "Ninguno todavía. Di «guarda el número de mamá 612345678».");
+    responder("📇 Tus contactos", l.length ? l.map((k) => "• " + (c[k].n || k) + (c[k].tel ? " · " + c[k].tel : "") + (c[k].email ? " · " + c[k].email : "")).join("\n") : "Ninguno todavía. Di «guarda el número de mamá 612345678».");
     return true;
   }
 
@@ -96,7 +104,7 @@ function controlComandos(n, o) {
   if (m) {
     const c = contacto(m[1]), txt = m[2].trim();
     const url = c && c.tel ? "https://wa.me/" + c.tel + "?text=" + encodeURIComponent(txt) : "https://wa.me/?text=" + encodeURIComponent(txt);
-    responder("💬 WhatsApp" + (c ? " a " + capital(c.nombre) : ""), "«" + txt + "»" + (c && c.tel ? "\nSolo tienes que darle a enviar." : "\nElige a quién mandarlo. (Di «guarda el número de " + normC(m[1]) + " …» para ir directo la próxima vez.)"), { voz: c ? "Preparado el mensaje para " + c.nombre + ". Dale a enviar." : "Elige a quién mandarlo" });
+    responder("💬 WhatsApp" + (c ? " a " + c.nombre : ""), "«" + txt + "»" + (c && c.tel ? "\nSolo tienes que darle a enviar." : "\nElige a quién mandarlo. (Di «guarda el número de " + normC(m[1]) + " …» para ir directo la próxima vez.)"), { voz: c ? "Preparado el mensaje para " + c.nombre + ". Dale a enviar." : "Elige a quién mandarlo" });
     abrir(url);
     return true;
   }
@@ -120,7 +128,7 @@ function controlComandos(n, o) {
   m = n.match(/^(?:llama|llamar|marca)\s+a\s+(.+)$/);
   if (m) {
     const c = contacto(m[1]);
-    if (c && c.tel) { responder("📞 Llamando a " + capital(c.nombre), "+" + c.tel, { voz: "Llamando a " + c.nombre }); location.href = "tel:+" + c.tel; return true; }
+    if (c && c.tel) { responder("📞 Llamando a " + c.nombre, "+" + c.tel, { voz: "Llamando a " + c.nombre }); location.href = "tel:+" + c.tel; return true; }
     responder("📞 No tengo su número", "Di «guarda el número de " + normC(m[1]) + " 612345678».", { voz: "No tengo su número. Dímelo y lo guardo." });
     return true;
   }
