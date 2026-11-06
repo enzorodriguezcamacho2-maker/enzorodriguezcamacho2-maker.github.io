@@ -36,7 +36,10 @@ async function geminiDirecto(partes, conHistorial) {
       if (r.status === 403) throw new Error("clave");
       const c = d.candidates && d.candidates[0];
       const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
-      if (txt) return txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "");
+      if (txt) {
+        window.iaInfo = { modelo: mod, web: !!(c.groundingMetadata && (c.groundingMetadata.webSearchQueries || []).length), foto: partes.some((p) => p.inline_data) };
+        return txt.replace(/\*+/g, "").replace(/\[\d+(?:,\s*\d+)*\]/g, "");
+      }
       ultimo = mod + " " + r.status;
     }
   }
@@ -438,7 +441,8 @@ function syncSubir(k) {
   if (!scriptListo()) return;
   clearTimeout(syncT[k]);
   syncT[k] = setTimeout(() => {
-    fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "guardar", k, ts: syncTs(k), v: SYNC[k].leer() }) }).catch(() => {});
+    fetch(scriptBase(), { method: "POST", body: JSON.stringify({ clave: scriptClave(), accion: "guardar", k, ts: syncTs(k), v: SYNC[k].leer() }) })
+      .then((r) => r.json()).then((d) => { if (d.ok) localStorage.setItem("jarvisUltSync", Date.now()); }).catch(() => {});
   }, 1200);
 }
 let bajando = false;
@@ -447,6 +451,7 @@ async function syncBajar() {
   bajando = true;
   try {
     const d = await script({ accion: "leer" });
+    if (!d.error) { localStorage.setItem("jarvisUltSync", Date.now()); localStorage.setItem("jarvisScriptNuevo", d.CAL !== undefined ? "1" : "0"); }
     for (const k of Object.keys(SYNC)) {
       const srv = d[k];
       if (srv && srv.ts > syncTs(k)) {
@@ -523,24 +528,3 @@ function masComandos(t, n, o) {
   return false;
 }
 
-// ================== CLAVE DE IA EN AJUSTES ==================
-(() => {
-  const campo = $("optGemini");
-  if (!campo) return;
-  campo.value = geminiClave();
-  const guardar = async () => {
-    const v = campo.value.trim();
-    if (v === geminiClave()) return;
-    if (!v) { localStorage.removeItem("jarvisGemini"); responder("🤖 Clave quitada", "He borrado tu clave de IA de este aparato."); return; }
-    localStorage.setItem("jarvisGemini", v);
-    setEstado("thinking");
-    try {
-      await geminiDirecto([{ text: "Di solo: listo" }], false);
-      responder("🤖 IA conectada", "Ya puedo responder cualquier pregunta, mirar fotos y buscar partidos.", { voz: "Inteligencia artificial conectada. Pregúntame lo que quieras." });
-    } catch (e) {
-      responder(e.message === "clave" ? "🤖 Clave no válida" : "🤖 Clave guardada", e.message === "clave" ? "Google dice que esa clave no vale. Cópiala otra vez desde AI Studio." : "La he guardado, pero la IA no ha respondido ahora. Prueba a preguntarme algo en un momento.");
-    }
-  };
-  campo.addEventListener("change", guardar);
-  campo.addEventListener("keydown", (e) => { if (e.key === "Enter") { campo.blur(); guardar(); } });
-})();

@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css?v=14">
+<link rel="stylesheet" href="estilo.css?v=15">
 </head>
 <body>
   <div class="island" id="app">
@@ -162,30 +162,102 @@
       </div>
     </section>
 
-    <div class="sheet" id="sheet" hidden>
+    <div class="sheet ajustes" id="sheet" hidden>
       <h4>Ajustes <button class="iconbtn" id="cerrarAjustes" title="Cerrar">✕</button></h4>
-      <label class="row"><div>Siempre atento<small>Escucha sin pulsar; responde cuando dices «Jarvis…»</small></div>
-        <span class="switch"><input type="checkbox" id="optAtento"><span></span></span></label>
-      <label class="row"><div>Responder en voz alta</div>
-        <span class="switch"><input type="checkbox" id="optVoz"><span></span></span></label>
-      <label class="row"><div>Avisos en pantalla<small>Notificación cuando acaba un temporizador o recordatorio</small></div>
-        <span class="switch"><input type="checkbox" id="optAvisos"><span></span></span></label>
-      <div class="row"><div>Tu ciudad<small>Para el tiempo</small></div>
-        <input type="text" id="optCiudad" placeholder="Ej: Madrid"></div>
-      <div class="row"><div>Clave de IA (Gemini)<small>Pégala aquí. Se guarda solo en este aparato. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Conseguir clave</a></small></div>
-        <input type="password" id="optGemini" placeholder="Pega tu clave" autocomplete="off" spellcheck="false"></div>
+      <nav class="ajnav">
+        <a href="#ajIA">🤖 IA</a><a href="#ajVoz">🎙 Voz</a><a href="#ajPerfil">👤 Perfil</a><a href="#ajCon">🔌 Conexiones</a><a href="#ajUso">📊 Uso</a>
+      </nav>
+
+      <section class="ajcard" id="ajIA">
+        <header><span class="ajico" style="--c:#8b7bff">🤖</span><div><b>Inteligencia artificial</b><small>Gemini de Google · responde, busca y mira fotos</small></div><span class="estado" id="iaEstado">No activada</span></header>
+        <div class="ajkv"><span>Clave</span><b id="iaClaveTxt">Sin clave</b></div>
+        <div class="ajkv"><span>Modelo</span><b id="iaModelo">—</b></div>
+        <div class="ajkv"><span>Búsqueda en Google</span><b id="iaBusqueda">—</b></div>
+        <div class="ajkv"><span>Último uso</span><b id="iaUltimo">Nunca</b></div>
+        <div class="ajstats">
+          <div><b id="usoIaHoy">0</b><small>Preguntas hoy</small></div>
+          <div><b id="usoIaMes">0</b><small>Este mes</small></div>
+          <div><b id="usoWeb">0</b><small>Búsquedas web</small></div>
+          <div><b id="usoFotos">0</b><small>Fotos vistas</small></div>
+        </div>
+        <div class="ajlimite"><div><span>Uso de hoy (plan gratis)</span><small id="iaLimiteTxt">0 de ~1.000</small></div><div class="hbarra"><i id="iaLimiteBarra"></i></div></div>
+        <div class="ajclave" id="iaEditar" hidden>
+          <input type="password" id="optGemini" placeholder="Pega aquí tu clave de Gemini" autocomplete="off" spellcheck="false">
+          <button class="ajbtn primario" id="iaGuardar">Guardar</button>
+        </div>
+        <div class="ajbtns">
+          <button class="ajbtn" id="iaProbar">⚡ Probar</button>
+          <button class="ajbtn" id="iaCambiar">🔑 Poner clave</button>
+          <button class="ajbtn peligro" id="iaBorrar" hidden>Quitar</button>
+        </div>
+        <p class="ajnota">La clave se guarda solo en este aparato. <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Conseguir clave gratis</a></p>
+      </section>
+
+      <section class="ajcard" id="ajVoz">
+        <header><span class="ajico" style="--c:#5ee7ff">🎙</span><div><b>Voz y escucha</b><small>Cómo te oye y cómo te habla</small></div></header>
+        <label class="row"><div>Responder en voz alta</div>
+          <span class="switch"><input type="checkbox" id="optVoz"><span></span></span></label>
+        <label class="row"><div>Siempre atento<small>Escucha sin pulsar; responde cuando dices «Jarvis…» (mejor en el Chromebook)</small></div>
+          <span class="switch"><input type="checkbox" id="optAtento"><span></span></span></label>
+        <label class="row"><div>Modo mayordomo<small>Voz más grave y pausada, estilo Iron Man</small></div>
+          <span class="switch"><input type="checkbox" id="optMayordomo"><span></span></span></label>
+        <label class="row"><div>Sonidos<small>Pitido al escuchar y al responder</small></div>
+          <span class="switch"><input type="checkbox" id="optSonidos"><span></span></span></label>
+        <div class="row"><div>Voz actual<small id="vozActual">Automática</small></div>
+          <button class="ajbtn" id="vozCambiar">Cambiar voz</button></div>
+      </section>
+
+      <section class="ajcard" id="ajPerfil">
+        <header><span class="ajico" style="--c:#3ee6a8">👤</span><div><b>Tu perfil</b><small>Lo que Jarvis sabe de ti</small></div></header>
+        <div class="row"><div>Tu nombre<small>Cómo te llama Jarvis</small></div>
+          <input type="text" id="optNombre" placeholder="Ej: Enzo"></div>
+        <div class="row"><div>Tu ciudad<small>Para el tiempo y la IA</small></div>
+          <input type="text" id="optCiudad" placeholder="Ej: Madrid"></div>
+        <div class="row"><div>Tu equipo<small id="equipoTxt">Para «cómo vamos» y los goles</small></div>
+          <input type="text" id="optEquipo" placeholder="Ej: Real Madrid"></div>
+        <label class="row"><div>Buenos días automático<small>Al abrir Jarvis por la mañana</small></div>
+          <span class="switch"><input type="checkbox" id="optRutina"><span></span></span></label>
+        <div class="row"><div>Cosas que recuerdo<small id="memTxt">Nada todavía</small></div>
+          <button class="ajbtn" id="memVer">Ver</button></div>
+      </section>
+
+      <section class="ajcard" id="ajCon">
+        <header><span class="ajico" style="--c:#ffb547">🔌</span><div><b>Conexiones y permisos</b><small>Qué está funcionando ahora mismo</small></div></header>
+        <div class="ajcon"><i id="conIA"></i><div><b>IA (Gemini)</b><small id="conIATxt">—</small></div></div>
+        <div class="ajcon"><i id="conScript"></i><div><b>Script de Google</b><small id="conScriptTxt">—</small></div></div>
+        <div class="ajcon"><i id="conTelegram"></i><div><b>Telegram (avisos al móvil)</b><small id="conTelegramTxt">—</small></div></div>
+        <div class="ajcon"><i id="conMic"></i><div><b>Micrófono</b><small id="conMicTxt">—</small></div></div>
+        <div class="ajcon"><i id="conGeo"></i><div><b>Ubicación</b><small id="conGeoTxt">—</small></div></div>
+        <label class="ajcon"><i id="conNoti"></i><div><b>Notificaciones</b><small id="conNotiTxt">Avisos cuando acaba un temporizador o recordatorio</small></div>
+          <span class="switch"><input type="checkbox" id="optAvisos"><span></span></span></label>
+      </section>
+
+      <section class="ajcard" id="ajUso">
+        <header><span class="ajico" style="--c:#ff5e8a">📊</span><div><b>Uso de Jarvis</b><small id="usoDesde">Desde hoy</small></div></header>
+        <div class="ajstats">
+          <div><b id="usoHoy">0</b><small>Órdenes hoy</small></div>
+          <div><b id="usoSemana">0</b><small>Esta semana</small></div>
+          <div><b id="usoTotal">0</b><small>En total</small></div>
+          <div><b id="usoFut">0</b><small>Fútbol</small></div>
+        </div>
+        <div class="ajgraf" id="usoGraf"></div>
+        <div class="row hist"><div>Últimas órdenes<small id="historial">Todavía nada</small></div></div>
+        <div class="ajbtns"><button class="ajbtn peligro" id="histBorrar">Borrar historial</button></div>
+      </section>
+
       <div class="row" id="filaInstalar" hidden><div>Instalar Jarvis<small>Como app, en su propia ventana</small></div>
         <button class="chip" id="instalarBtn">Instalar</button></div>
-      <div class="row hist"><div>Últimas órdenes<small id="historial">Todavía nada</small></div></div>
+      <p class="ajversion">Jarvis v15</p>
     </div>
   </div>
 
-  <script src="orb.js?v=14"></script>
-  <script src="jarvis.js?v=14"></script>
-  <script src="extra.js?v=14"></script>
-  <script src="apps.js?v=14"></script>
-  <script src="mas.js?v=14"></script>
-  <script src="vida.js?v=14"></script>
-  <script src="plus.js?v=14"></script>
+  <script src="orb.js?v=15"></script>
+  <script src="jarvis.js?v=15"></script>
+  <script src="extra.js?v=15"></script>
+  <script src="apps.js?v=15"></script>
+  <script src="mas.js?v=15"></script>
+  <script src="vida.js?v=15"></script>
+  <script src="plus.js?v=15"></script>
+  <script src="ajustes.js?v=15"></script>
 </body>
 </html>
