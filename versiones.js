@@ -1,5 +1,11 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 24, fecha: "6 nov · 23:50", titulo: "Partidos de verdad: de 3 en 3 y primero los grandes", cambios: [
+    "Encontrado el fallo real: Jarvis le pedía mal los partidos a ESPN (error 400) y saturaba TheSportsDB",
+    "Ahora pide los partidos día a día, de 3 en 3, como ESPN sí entiende",
+    "Primero salen los del Madrid, Barça y Atlético; luego se va llenando el resto en pantalla",
+    "Adelanta también la semana siguiente y se actualiza solo cada hora (cada 10 min si hay partido hoy)",
+    "Todo queda guardado: lo siguiente que preguntes sale al instante"] },
   { v: 23, fecha: "6 nov · 23:35", titulo: "Partidos: nueva forma de conseguirlos", cambios: [
     "Los partidos se piden día a día (una semana atrás y diez días adelante), que es lo que sí deja la base de datos gratuita",
     "Si aun así fallan, abajo sale el motivo exacto de cada fuente"] },

@@ -32,41 +32,88 @@ function deTsdb(e) {
   return { t, local: e.strHomeTeam, visit: e.strAwayTeam, gl: e.intHomeScore ?? "", gv: e.intAwayScore ?? "", estado: fin ? "post" : vivo ? "in" : "pre", reloj: vivo ? st : "", escL: e.strHomeTeamBadge ? e.strHomeTeamBadge + "/tiny" : "", escV: e.strAwayTeamBadge ? e.strAwayTeamBadge + "/tiny" : "", ronda: e.intRound };
 }
 
-let futDiag = []; // qué ha fallado en cada fuente (se enseña si no sale nada)
-async function partidosDeFuentes(liga) {
-  futDiag = [];
-  const ymd = (d) => d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
-  const ruta = "/apis/site/v2/sports/soccer/" + liga + "/scoreboard?dates=" + ymd(sumarDias(hoy0(), -8)) + "-" + ymd(sumarDias(hoy0(), 10)) + "&limit=100";
-  const limpia = (ps) => { const v = new Set(); return ps.filter((p) => p.t && !v.has(p.local + p.visit + p.t) && v.add(p.local + p.visit + p.t)); };
-  // 1) ESPN directo
-  try { const d = await jsonDe("https://site.api.espn.com" + ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; futDiag.push("ESPN: sin partidos"); } catch (e) { futDiag.push("ESPN: " + (e.message || "bloqueado")); }
-  // 2) TheSportsDB: se pide día a día (lo más fiable con la clave gratis)
-  const id = TSDB[liga];
-  if (id) {
-    const base = "https://www.thesportsdb.com/api/v1/json/3/";
-    const dias = [...Array(17)].map((_, i) => sumarDias(hoy0(), i - 7));
-    const res = await Promise.all(dias.map((d) => jsonDe(base + "eventsday.php?d=" + fechaISO(d) + "&l=" + id, 9000).then((x) => x.events || []).catch((e) => { futDiag.push("TSDB " + d.getDate() + ": " + e.message); return []; })));
-    let ps = limpia(res.flat().map(deTsdb));
-    // Plan extra: por jornada
-    if (!ps.length) {
-      try {
-        let ronda = null;
-        try { const nx = await jsonDe(base + "eventsnextleague.php?id=" + id); ronda = +((nx.events || [])[0] || {}).intRound || null; } catch (e) {}
-        if (!ronda) { try { const pl = await jsonDe(base + "eventspastleague.php?id=" + id); ronda = (+((pl.events || [])[0] || {}).intRound || 0) + 1; } catch (e) {} }
-        if (ronda > 1) {
-          const rondas = await Promise.all([ronda - 1, ronda].map((r) => jsonDe(base + "eventsround.php?id=" + id + "&r=" + r + "&s=" + temporada()).catch(() => ({}))));
-          ps = limpia(rondas.flatMap((x) => x.events || []).map(deTsdb));
-        }
-      } catch (e) {}
-    }
-    const lim = Date.now() - 14 * 86400e3;
-    ps = ps.filter((p) => p.t >= lim);
-    if (ps.length) return { partidos: ps, fuente: "TheSportsDB" };
-    futDiag.push("TheSportsDB: sin partidos");
+let futDiag = []; // qué ha fallado (se enseña si no sale nada)
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+// Equipos que van primero (ids de ESPN)
+const PRIORITARIOS = [{ id: "86", n: "Real Madrid" }, { id: "83", n: "Barcelona" }, { id: "1068", n: "Atlético" }];
+const claveP = (p) => normEq(p.local) + "|" + normEq(p.visit) + "|" + new Date(p.t).toDateString();
+
+// Ejecuta tareas de 3 en 3, con una pausa entre grupos; avisa tras cada grupo
+async function deTresEnTres(tareas, alAcabarGrupo, pausa) {
+  for (let i = 0; i < tareas.length; i += 3) {
+    const res = await Promise.all(tareas.slice(i, i + 3).map((t) => t().catch((e) => { futDiag.push(e.message || "fallo"); return null; })));
+    if (alAcabarGrupo) alAcabarGrupo(res.filter(Boolean).flat());
+    if (i + 3 < tareas.length) await espera(pausa || 700);
   }
-  // 3) Tu script de Google / 4) intermediario
-  try { const d = await espn(ruta); const ps = (d.events || []).map(deEspn); if (ps.length) return { partidos: ps, fuente: "ESPN" }; } catch (e) { futDiag.push("intermediario: fallo"); }
-  throw new Error("sin fuente");
+}
+function mezclar(liga, nuevos, fuente) {
+  const c = futLeer(), g = c[liga] = c[liga] || { partidos: [], dias: {} };
+  const mapa = new Map((g.partidos || []).map((p) => [claveP(p), p]));
+  nuevos.forEach((p) => { if (p && p.t) mapa.set(claveP(p), Object.assign(mapa.get(claveP(p)) || {}, p)); });
+  g.partidos = [...mapa.values()];
+  if (nuevos.length) { g.fuente = fuente; g.act = Date.now(); }
+  futGuardar(c);
+  return c[liga];
+}
+// ¿Hay que volver a pedir este día? Pasado: una vez basta. Hoy: cada 10 min. Futuro: cada hora.
+function diaCaducado(g, iso) {
+  const ts = (g && g.dias && g.dias[iso]) || 0, hoy = fechaISO(new Date());
+  if (!ts) return true;
+  if (iso < hoy) return ts < deISO(iso).getTime() + 86400e3 + 3 * 3600e3; // pedido antes de que acabara ese día
+  if (iso === hoy) return Date.now() - ts > 10 * 60e3;
+  return Date.now() - ts > 60 * 60e3;
+}
+function marcarDia(liga, iso) { const c = futLeer(); if (!c[liga]) return; c[liga].dias = c[liga].dias || {}; c[liga].dias[iso] = Date.now(); for (const k in c[liga].dias) if (k < fechaISO(sumarDias(hoy0(), -15))) delete c[liga].dias[k]; futGuardar(c); }
+
+let cargando = {};
+// Carga progresiva: 1) Madrid, Barça y Atlético · 2) días cercanos de 3 en 3 · 3) semana siguiente
+async function cargarProgresivo(liga, alAvanzar, hasta) {
+  if (cargando[liga]) return cargando[liga];
+  futDiag = [];
+  const tarea = (async () => {
+    const yyyymmdd = (d) => d.getFullYear() + pad2(d.getMonth() + 1) + pad2(d.getDate());
+    let exitos = 0;
+    const tras = (ps, fuente) => { if (ps.length) { exitos++; mezclar(liga, ps, fuente); if (alAvanzar) alAvanzar(); } };
+    // 1) Los tres grandes (solo en LaLiga y Champions)
+    if (liga === "esp.1" || liga === "uefa.champions") {
+      const g = futLeer()[liga];
+      if (!g || !g.prio || Date.now() - g.prio > 60 * 60e3) {
+        const tareas = PRIORITARIOS.map((e) => async () => {
+          const [a, b] = await Promise.all([
+            jsonDe("https://site.api.espn.com/apis/site/v2/sports/soccer/" + liga + "/teams/" + e.id + "/schedule"),
+            jsonDe("https://site.api.espn.com/apis/site/v2/sports/soccer/" + liga + "/teams/" + e.id + "/schedule?fixture=true").catch(() => ({}))
+          ]);
+          const lim = Date.now() - 14 * 86400e3, max = Date.now() + 21 * 86400e3;
+          return (a.events || []).concat(b.events || []).map(deEspn).filter((p) => p.t >= lim && p.t <= max);
+        });
+        await deTresEnTres(tareas, (ps) => tras(ps, "ESPN"));
+        const c = futLeer(); if (c[liga]) { c[liga].prio = Date.now(); futGuardar(c); }
+      }
+    }
+    // 2) y 3) Día a día: hoy, los próximos, los pasados y la semana siguiente
+    const dias = [];
+    for (let i = 0; i <= (hasta || 14); i++) dias.push(sumarDias(hoy0(), i));
+    for (let i = 1; i <= 7; i++) dias.splice(Math.min(dias.length, 4 + i * 2), 0, sumarDias(hoy0(), -i)); // intercala días pasados
+    const g = futLeer()[liga];
+    const pendientes = dias.filter((d) => diaCaducado(g, fechaISO(d)));
+    const tareas = pendientes.map((d) => async () => {
+      const r = await jsonDe("https://site.api.espn.com/apis/site/v2/sports/soccer/" + liga + "/scoreboard?dates=" + yyyymmdd(d));
+      marcarDia(liga, fechaISO(d));
+      return (r.events || []).map(deEspn);
+    });
+    await deTresEnTres(tareas, (ps) => { if (ps.length) tras(ps, "ESPN"); else exitos++; });
+    // Reserva: TheSportsDB, despacio (no deja muchas peticiones seguidas)
+    if (!exitos && TSDB[liga]) {
+      const base = "https://www.thesportsdb.com/api/v1/json/3/";
+      for (const d of dias.slice(0, 10)) {
+        try { const r = await jsonDe(base + "eventsday.php?d=" + fechaISO(d) + "&l=" + TSDB[liga], 9000); tras((r.events || []).map(deTsdb), "TheSportsDB"); marcarDia(liga, fechaISO(d)); }
+        catch (e) { futDiag.push("TSDB: " + e.message); }
+        await espera(2200);
+      }
+    }
+  })();
+  cargando[liga] = tarea;
+  try { await tarea; } finally { delete cargando[liga]; }
 }
 
 async function tablaDeFuentes(liga) {
@@ -95,28 +142,20 @@ function tablaEspn(d) {
 }
 
 // ---------- Caché: al instante si está guardado ----------
-// Se refresca solo: cada 12 h, o antes si había un partido en juego o que ya debería haber acabado.
-function necesitaRefresco(c) {
-  if (!c || !c.act || !c.fuente || !(c.partidos || []).length) return true;
-  const edad = Date.now() - c.act;
-  if (edad > 12 * 3600e3) return true;
-  if (edad > 10 * 60e3 && (c.partidos || []).some((p) => p.estado === "in" || (p.estado === "pre" && p.t < Date.now() - 2 * 3600e3))) return true;
-  return false;
-}
-async function jornada(liga, forzar) {
-  const c = futLeer();
-  const guardado = c[liga];
-  if (guardado && !forzar && !necesitaRefresco(guardado)) return Object.assign({ deCache: true }, guardado);
-  try {
-    const r = await partidosDeFuentes(liga);
-    const nuevo = Object.assign(guardado || {}, { partidos: r.partidos, fuente: r.fuente, act: Date.now() });
-    const c2 = futLeer(); c2[liga] = nuevo; futGuardar(c2);
-    return nuevo;
-  } catch (e) {
-    if (guardado && guardado.fuente && guardado.partidos && guardado.partidos.length) return Object.assign({ deCache: true, viejo: true }, guardado);
-    throw e;
+const tieneDatos = (g) => !!(g && g.fuente && (g.partidos || []).length);
+// Devuelve los partidos: si hay guardados, al momento (y actualiza por detrás); si no, espera a la primera carga
+async function jornada(liga, forzar, alAvanzar) {
+  const g = futLeer()[liga];
+  if (tieneDatos(g) && !forzar) {
+    cargarProgresivo(liga, alAvanzar).catch(() => {});
+    return Object.assign({ deCache: true }, g);
   }
+  await cargarProgresivo(liga, alAvanzar);
+  const g2 = futLeer()[liga];
+  if (tieneDatos(g2)) return g2;
+  throw new Error("sin fuente");
 }
+
 async function clasificacion(liga, forzar) {
   const c = futLeer(), g = c[liga];
   if (g && g.tabla && !forzar && Date.now() - (g.actTabla || 0) < 12 * 3600e3) return { tabla: g.tabla, fuente: g.fuenteTabla, act: g.actTabla, deCache: true };
@@ -172,8 +211,19 @@ async function futPintar(forzar) {
       pie.textContent = "✅ Datos de " + r.fuente + " · actualizado " + hace(r.act).toLowerCase() + (r.viejo ? " (sin conexión: guardado)" : "");
       return;
     }
-    const r = await jornada(futLiga, forzar);
-    const ps = r.partidos.slice().sort((a, b) => a.t - b.t);
+    const ligaPintada = futLiga;
+    const r = await jornada(futLiga, forzar, () => { if (!$("panelFutbol").hidden && futLiga === ligaPintada && futTab === "partidos") clearTimeout(futRepintar), futRepintar = setTimeout(() => futPintarDatos(futLeer()[ligaPintada]), 150); });
+    futPintarDatos(r);
+  } catch (e) {
+    lista.innerHTML = '<div class="futcarga">⚠️ No he podido confirmar los datos ahora mismo y no tengo nada guardado de esta liga. Prueba con ↻ en un momento.</div>';
+    pie.textContent = futDiag.length ? "Detalle: " + [...new Set(futDiag)].slice(0, 4).join(" · ") : "";
+  }
+}
+let futRepintar = null;
+function futPintarDatos(r) {
+    if (!r) return;
+    const lista = $("futLista"), pie = $("futPie");
+    const ps = (r.partidos || []).slice().sort((a, b) => a.t - b.t);
     lista.innerHTML = "";
     if (!ps.length) { lista.innerHTML = '<div class="futcarga">No hay partidos estos días.</div>'; }
     // Primero lo que viene (y lo que se juega ahora); después los resultados recientes
@@ -194,13 +244,16 @@ async function futPintar(forzar) {
         lista.append(fila);
       });
     };
-    grupo("Próximos partidos", proximos);
+    // Primero Madrid, Barça y Atlético
+    const esGrande = (p) => PRIORITARIOS.some((e) => [p.local, p.visit].some((x) => normEq(x).includes(normEq(e.n).split(" ").pop()) || normEq(x).includes("atletico")));
+    if (futLiga === "esp.1" || futLiga === "uefa.champions") {
+      const grandes = proximos.filter(esGrande).slice(0, 6);
+      grupo("⭐ Madrid, Barça y Atlético", grandes);
+      grupo("Próximos partidos", proximos.filter((p) => !grandes.includes(p)));
+    } else grupo("Próximos partidos", proximos);
     grupo("Resultados", jugados);
-    pie.textContent = "✅ Datos de " + r.fuente + " · actualizado " + hace(r.act).toLowerCase() + (r.viejo ? " (sin conexión: guardado)" : r.deCache ? " · guardado" : "");
-  } catch (e) {
-    lista.innerHTML = '<div class="futcarga">⚠️ No he podido confirmar los datos ahora mismo y no tengo nada guardado de esta liga. Prueba con ↻ en un momento.</div>';
-    pie.textContent = futDiag.length ? "Detalle: " + [...new Set(futDiag)].slice(0, 4).join(" · ") : "";
-  }
+    const cargandoAun = !!cargando[futLiga];
+    pie.textContent = "✅ Datos de " + r.fuente + " · actualizado " + hace(r.act).toLowerCase() + (cargandoAun ? " · cargando más…" : "");
 }
 function futAbrir(liga, tab) {
   if (liga) futLiga = liga;
@@ -210,7 +263,7 @@ function futAbrir(liga, tab) {
 }
 document.querySelectorAll(".futtab").forEach((t) => t.addEventListener("click", () => { futTab = t.dataset.tab; futPintar(); }));
 $("futCerrar").addEventListener("click", panelCerrar);
-$("futRecargar").addEventListener("click", () => futPintar(true));
+$("futRecargar").addEventListener("click", () => { const c = futLeer(); if (c[futLiga]) { c[futLiga].dias = {}; c[futLiga].prio = 0; futGuardar(c); } futPintar(true); });
 
 // ---------- Respuestas por voz (con datos confirmados) ----------
 const _futbolProximosV = futbolProximos;
@@ -251,12 +304,14 @@ futbolClasificacion = async function (q) {
 };
 futbolHoy = function () { return futbolProximos("hoy"); };
 
-// Precarga en segundo plano tu liga (así al preguntar sale al instante)
-setTimeout(() => {
-  const fav = memLeer().equipo;
-  const liga = (fav && fav.liga) || "esp.1";
-  if (necesitaRefresco(futLeer()[liga])) jornada(liga).catch(() => {});
-}, 8000);
+// En segundo plano: al abrir y luego cada hora (cada 10 min si hay partido hoy), poco a poco
+function futFondo() {
+  const fav = memLeer().equipo, liga = (fav && fav.liga) || "esp.1";
+  cargarProgresivo(liga, () => { if (!$("panelFutbol").hidden && futLiga === liga && futTab === "partidos") futPintarDatos(futLeer()[liga]); }).catch(() => {});
+  const g = futLeer()[liga], hayHoy = g && (g.partidos || []).some((p) => new Date(p.t).toDateString() === new Date().toDateString() && p.estado !== "post");
+  setTimeout(futFondo, (hayHoy ? 10 : 60) * 60e3);
+}
+setTimeout(futFondo, 6000);
 
 // La IA nunca contesta de fútbol sin datos confirmados
 const _datosRealesV = datosReales;
