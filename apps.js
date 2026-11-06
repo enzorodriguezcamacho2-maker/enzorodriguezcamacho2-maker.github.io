@@ -247,7 +247,7 @@ setTimeout(calRevisar, 1500);
 // ================== MAPA ==================
 let mapa = null, mini = null, capaMapa = null, capaMini = null, marca = null, cajaMini = null, satelite = false, leafletCarga = null;
 const CAPAS = {
-  oscuro: { url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attr: "© OpenStreetMap · © CARTO", sub: "abcd" },
+  oscuro: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "© OpenStreetMap", sub: "abc" },
   sat: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "© Esri", sub: "" }
 };
 
@@ -266,6 +266,9 @@ function cargarLeaflet() {
 
 const capaDe = (c, extra) => L.tileLayer(c.url, Object.assign({ attribution: c.attr, maxZoom: 19, subdomains: c.sub || "abc" }, extra || {}));
 
+// Mapa oscuro: invierte los colores de OSM con CSS; el satélite se ve normal
+const aplicarTema = () => ["mapaMain", "mapaMini"].forEach((id) => $(id).classList.toggle("oscuro", !satelite));
+
 async function mapaIniciar() {
   await cargarLeaflet();
   if (mapa) { mapa.invalidateSize(); mini.invalidateSize(); return; }
@@ -274,8 +277,9 @@ async function mapaIniciar() {
   capaMapa = capaDe(CAPAS.oscuro).addTo(mapa);
   mini = L.map("mapaMini", { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false }).setView([40.2, -3.7], 1);
   capaMini = capaDe(CAPAS.oscuro).addTo(mini);
+  aplicarTema();
   cajaMini = L.rectangle(mapa.getBounds(), { color: "#5ee7ff", weight: 1.5, fillOpacity: 0.18, interactive: false }).addTo(mini);
-  const sync = () => { mini.setView(mapa.getCenter(), Math.max(0, mapa.getZoom() - 5), { animate: false }); cajaMini.setBounds(mapa.getBounds()); };
+  const sync = () => { mini.setView(mapa.getCenter(), Math.max(1, mapa.getZoom() - 3), { animate: false }); cajaMini.setBounds(mapa.getBounds()); };
   mapa.on("move zoom", sync); sync();
   mini.on("click", (e) => mapa.flyTo(e.latlng, Math.max(mapa.getZoom(), 6), { duration: 1.2 }));
 }
@@ -335,6 +339,7 @@ $("mapaSat").addEventListener("click", () => {
   capaMapa.remove(); capaMapa = capaDe(c).addTo(mapa);
   capaMini.remove(); capaMini = capaDe(c).addTo(mini); cajaMini.bringToFront();
   $("mapaSat").classList.toggle("on", satelite);
+  aplicarTema();
 });
 $("mapaYo").addEventListener("click", () => {
   if (!navigator.geolocation || !mapa) return;
