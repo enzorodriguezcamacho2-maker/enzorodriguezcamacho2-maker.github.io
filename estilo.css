@@ -478,3 +478,40 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
 .ngym li::before { content: ""; }
 .ngym li b { display: block; font-size: 11px; color: #fff; }
 .ngym li small { display: block; font-size: 9.5px; color: #ffb79a; }
+
+/* v13: botón de cámara */
+.cam { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; display: grid; place-items: center; flex: none; background: rgba(255,255,255,0.05); color: #cfe9ff; transition: background .2s, transform .15s; }
+.cam:hover { background: rgba(94,231,255,0.15); }
+.cam:active { transform: scale(.92); }
+.cam svg { width: 20px; height: 20px; }
+
+/* v13: gastos y hábitos */
+.ntotal { padding: 0 10px 4px; font-size: 20px; font-weight: 700; color: #fff; }
+.nbarras { list-style: none; margin: 0; padding: 0 10px 9px; display: flex; flex-direction: column; gap: 4px; }
+.nbarras li { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 5px; font-size: 9.5px; color: #c9d6ea; }
+.nbarras li span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nbarras li i { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #f7d154, #ff8a5e); box-shadow: 0 0 8px rgba(247,209,84,0.5); }
+.nbarras li small { font-size: 9px; color: #fff; }
+.nhab { padding: 0 10px 9px; display: flex; flex-direction: column; gap: 5px; }
+.nhab > div:not(.hbarra) { display: flex; justify-content: space-between; font-size: 10.5px; color: #c9d6ea; }
+.nhab b { color: #fff; }
+.hbarra { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.hbarra i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #5ec8ff, #5ee7ff); box-shadow: 0 0 8px #5ec8ff; transition: width .5s; }
+
+/* v13: cielo detrás de Jarvis (según la hora y el tiempo) */
+.island { isolation: isolate; }
+.cielo { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; transition: background 2s; }
+.cielo.amanecer { background: linear-gradient(180deg, rgba(255,138,94,0.16), rgba(139,123,255,0.06) 45%, transparent 75%); }
+.cielo.dia { background: linear-gradient(180deg, rgba(94,200,255,0.12), transparent 60%); }
+.cielo.atardecer { background: linear-gradient(180deg, rgba(255,94,138,0.16), rgba(255,181,71,0.07) 40%, transparent 75%); }
+.cielo.noche { background: linear-gradient(180deg, rgba(40,40,110,0.25), transparent 70%); }
+.cielo .est { position: absolute; width: var(--t); height: var(--t); border-radius: 50%; background: #fff; opacity: 0; }
+.cielo.noche .est { animation: titila 3.5s ease-in-out infinite; }
+@keyframes titila { 0%, 100% { opacity: .15; } 50% { opacity: .8; } }
+.cielo .gota { position: absolute; top: -12%; width: 1px; height: 12%; background: linear-gradient(transparent, rgba(160,200,255,0.45)); opacity: 0; }
+.cielo.lluvia .gota { opacity: 1; animation: caer linear infinite; }
+@keyframes caer { to { transform: translateY(1000%); } }
+.cielo.nieve .gota { opacity: 1; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.7); animation: caer linear infinite; animation-duration: 6s !important; }
+.cielo .nube { position: absolute; left: -40%; width: 70%; height: 18%; border-radius: 50%; background: rgba(170,190,220,0.07); filter: blur(28px); opacity: 0; }
+.cielo.nubes .nube { opacity: 1; animation: nubar 75s linear infinite; }
+@keyframes nubar { to { transform: translateX(200%); } }

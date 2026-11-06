@@ -79,6 +79,7 @@ function responder(titulo, texto, opts = {}) {
 let hablando = false;
 function vozEsp() {
   const voces = speechSynthesis.getVoices();
+  if (cfg.vozNombre) { const elegida = voces.find((v) => v.name === cfg.vozNombre); if (elegida) return elegida; }
   return voces.find((v) => v.lang === "es-ES" && /google/i.test(v.name)) || voces.find((v) => v.lang === "es-ES") || voces.find((v) => v.lang.startsWith("es"));
 }
 if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = () => {};
@@ -86,7 +87,7 @@ function hablar(texto) {
   if (!texto || !cfg.voz || !("speechSynthesis" in window)) { if (estado !== "listening") setEstado("idle"); return; }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(texto);
-  u.lang = "es-ES"; u.rate = 1.03;
+  u.lang = "es-ES"; u.rate = cfg.vozRitmo || 1.03; u.pitch = cfg.vozTono || 1;
   const v = vozEsp(); if (v) u.voice = v;
   u.onstart = () => { hablando = true; setEstado("speaking"); };
   u.onend = u.onerror = () => { hablando = false; setEstado("idle"); };
@@ -304,6 +305,14 @@ const AYUDA = [
   "💪  Gym: «press banca 4x8 con 60 kilos», «descanso», «mi récord en sentadilla», «qué hice el último día»",
   "🛒  «añade leche y huevos a la lista», «qué tengo en la lista», «ya tengo leche»",
   "💱  «precio del bitcoin», «cuánto son 50 dólares en euros», «a cuánto está el dólar»",
+  "⚽  «mi equipo es el Madrid», luego «cómo vamos», «cuándo jugamos» (y te canto los goles en directo)",
+  "📷  Botón de cámara o «qué es esto»: le enseñas algo y te dice qué es",
+  "🌍  «cómo se dice buenos días en inglés» (te lo dice en voz alta)",
+  "💸  «he gastado 12 euros en comida», «cuánto he gastado este mes»",
+  "💧  «he bebido un vaso de agua», «he dormido 7 horas», «he ido al gym», «mis hábitos»",
+  "📍  «guarda este sitio como casa», «cuando llegue a casa recuérdame sacar la basura»",
+  "🎧  «pon música para entrenar», «pon reguetón», «pon Quevedo en Spotify»",
+  "🎩  «modo mayordomo», «otra voz», «quita los sonidos»",
   "🧠  «llámame Mbappé», «recuerda que mi equipo es el Madrid», «cuál es mi equipo», «qué recuerdas»",
   "🌐  «abre youtube», «abre github.com»",
   "🔎  «busca recetas de pasta», «pon Bad Bunny en YouTube»",

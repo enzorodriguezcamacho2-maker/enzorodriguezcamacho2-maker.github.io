@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="estilo.css?v=12">
+<link rel="stylesheet" href="estilo.css?v=13">
 </head>
 <body>
   <div class="island" id="app">
@@ -58,6 +58,20 @@
         <ul class="nlista" id="nodoCompraLista"></ul>
         <div class="mfoot" id="nodoCompraPie"></div>
       </div>
+      <div class="nodo" id="nodoGastos" title="Ver gastos del mes">
+        <div class="nhead"><i style="--c:#f7d154"></i><span id="nodoGastosTit">Gastos</span></div>
+        <div class="ntotal" id="nodoGastosTotal">0 €</div>
+        <ul class="nbarras" id="nodoGastosLista"></ul>
+      </div>
+      <div class="nodo" id="nodoHabitos" title="Sumar un vaso de agua">
+        <div class="nhead"><i style="--c:#5ec8ff"></i><span>Hábitos de hoy</span></div>
+        <div class="nhab">
+          <div><span>💧 Agua</span><b id="habAgua">0/8</b></div>
+          <div class="hbarra"><i id="habAguaBarra"></i></div>
+          <div><span>😴 Sueño</span><b id="habSueno">–</b></div>
+          <div><span>🔥 Racha gym</span><b id="habRacha">0 días</b></div>
+        </div>
+      </div>
       <div class="nodo" id="nodoFutbol" title="Ver más en ESPN">
         <div class="nhead"><i style="--c:#ff5e8a"></i><span id="nodoFutbolLiga">Fútbol</span></div>
         <div class="nbody nfutbol">
@@ -93,6 +107,9 @@
 
     <div class="inputbar">
       <input id="entrada" type="text" placeholder="Escribe o pulsa el micro…" autocomplete="off">
+      <button class="cam" id="camBtn" title="Enséñame algo con la cámara">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.8"/></svg>
+      </button>
       <button class="mic" id="micBtn" title="Hablar (Espacio)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
       </button>
@@ -161,11 +178,12 @@
     </div>
   </div>
 
-  <script src="orb.js?v=12"></script>
-  <script src="jarvis.js?v=12"></script>
-  <script src="extra.js?v=12"></script>
-  <script src="apps.js?v=12"></script>
-  <script src="mas.js?v=12"></script>
-  <script src="vida.js?v=12"></script>
+  <script src="orb.js?v=13"></script>
+  <script src="jarvis.js?v=13"></script>
+  <script src="extra.js?v=13"></script>
+  <script src="apps.js?v=13"></script>
+  <script src="mas.js?v=13"></script>
+  <script src="vida.js?v=13"></script>
+  <script src="plus.js?v=13"></script>
 </body>
 </html>
