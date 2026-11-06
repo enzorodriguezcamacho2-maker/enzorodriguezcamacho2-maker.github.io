@@ -152,7 +152,7 @@ async function iaProbar(nueva) {
   } catch (e) {
     ajPintar();
     est.textContent = e.message === "clave" ? "Clave no válida" : "Sin respuesta"; est.className = "estado no";
-    responder(e.message === "clave" ? "🤖 Clave no válida" : "🤖 La IA no responde", e.message === "clave" ? "Google dice que esa clave no vale. Cópiala otra vez desde AI Studio." : "Ahora mismo no responde. Prueba en un momento.");
+    responder(e.message === "clave" ? "🤖 Clave no válida" : "🤖 La IA no responde", e.message === "clave" ? "Google dice que esa clave no vale. Cópiala otra vez desde AI Studio." : "Ahora mismo no responde.\nDetalle: " + (localStorage.getItem("jarvisIaError") || e.message));
   }
 }
 $("iaProbar").addEventListener("click", () => iaProbar(false));

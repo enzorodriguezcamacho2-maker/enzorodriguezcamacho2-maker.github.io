@@ -1,5 +1,10 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 19, fecha: "6 nov · 23:05", titulo: "Arreglo: la IA volvía a no responder", cambios: [
+    "La v17 mandaba a la IA un ajuste de velocidad que con tu clave dejaba la respuesta vacía",
+    "Ahora, si ese ajuste falla, repite la pregunta exactamente como en la v16 (que funcionaba)",
+    "Más margen de tiempo antes de rendirse",
+    "Si falla, «Probar» enseña el motivo exacto que da Google"] },
   { v: 18, fecha: "6 nov · 22:55", titulo: "Historial de versiones", cambios: [
     "Nueva sección «Versiones» en Ajustes con todo lo hecho en cada versión",
     "Aviso automático cuando Jarvis se actualiza, con sus novedades",

@@ -41,21 +41,25 @@ async function geminiDirecto(partes, conHistorial) {
   for (const conBusqueda of intentos) {
     for (const mod of modelos) {
       for (const sinPensar of (sinThink.has(mod) ? [false] : [true, false])) {
-        const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] }, generationConfig: { maxOutputTokens: 600, temperature: 0.6 } };
-        if (sinPensar) cuerpo.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+        // Primer intento: sin "pensar" (más rápido). Si falla por lo que sea, se repite tal cual funcionaba en la v16.
+        const cuerpo = { contents, systemInstruction: { parts: [{ text: sistemaIA() }] } };
+        if (sinPensar) cuerpo.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
         if (conBusqueda) cuerpo.tools = [{ google_search: {} }];
         let r;
         try {
-          r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo), signal: conTiempo(conBusqueda ? 20000 : 12000) });
+          r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + mod + ":generateContent", { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": geminiClave() }, body: JSON.stringify(cuerpo), signal: conTiempo(conBusqueda ? 35000 : 25000) });
         } catch (e) { ultimo = mod + (e.name === "AbortError" ? " tardó demasiado" : " sin red"); break; }
         const d = await r.json().catch(() => ({}));
         const err = JSON.stringify(d.error || "");
         if (r.status === 400 && /API key|API_KEY/i.test(err)) throw new Error("clave");
         if (r.status === 403) throw new Error("clave");
-        if (r.status === 400 && sinPensar && /think/i.test(err)) { sinThink.add(mod); continue; } // ese modelo no acepta el ajuste: reintenta sin él
+        const c0 = d.candidates && d.candidates[0];
+        const vacio = !(c0 && c0.content && c0.content.parts && c0.content.parts.some((p) => p.text));
+        if (sinPensar && (!r.ok || vacio)) { sinThink.add(mod); continue; } // reintenta este modelo sin el ajuste // ese modelo no acepta el ajuste: reintenta sin él
         const c = d.candidates && d.candidates[0];
         const txt = c && c.content && c.content.parts ? c.content.parts.map((p) => p.text || "").join("").trim() : "";
         if (txt) {
+          localStorage.removeItem("jarvisIaError");
           const web = !!(c.groundingMetadata && ((c.groundingMetadata.webSearchQueries || []).length || (c.groundingMetadata.groundingChunks || []).length));
           window.iaInfo = { modelo: mod, web, foto: partes.some((p) => p.inline_data) };
           localStorage.setItem("jarvisIaBusqueda", buscar ? (web ? "ok" : "fallo:" + (ultimo || "sin búsqueda")) : localStorage.getItem("jarvisIaBusqueda") || "");
@@ -63,7 +67,8 @@ async function geminiDirecto(partes, conHistorial) {
           if (buscar && !web) out += "\n\n⚠️ No he podido buscar en internet: puede estar desactualizado.";
           return out;
         }
-        ultimo = mod + " " + r.status + (d.error && d.error.message ? " " + d.error.message.slice(0, 80) : "");
+        ultimo = mod + " " + r.status + (d.error && d.error.message ? " " + d.error.message.slice(0, 120) : c0 && c0.finishReason ? " " + c0.finishReason : "");
+        localStorage.setItem("jarvisIaError", ultimo);
         break;
       }
     }
