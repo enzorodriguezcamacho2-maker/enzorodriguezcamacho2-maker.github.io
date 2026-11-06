@@ -625,3 +625,20 @@ body.permiso { display: grid; place-items: center; min-height: 100vh; background
 .futtabla tr.fav { background: rgba(139,123,255,0.14); }
 .futcarga { padding: 26px 8px; text-align: center; color: var(--muted); font-size: 0.85rem; }
 .futpie { flex: none; font-size: 0.7rem; color: var(--muted); text-align: center; }
+
+/* v25: Champions */
+.futtabs.tres { grid-template-columns: 1fr 1fr 1fr; }
+.futtab[hidden] { display: none; }
+.futtabla tr.playoff td:first-child { color: #ffc24b; font-weight: 700; }
+.futley { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 10px 0 4px; font-size: 0.68rem; color: var(--muted); }
+.futley i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.futley i.champ { background: #5ee7ff; } .futley i.playoff { background: #ffc24b; } .futley i.desc { background: #ff7d9c; }
+.futinfo { margin: 14px 4px; padding: 14px; border-radius: 16px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+.futinfo b { font-size: 0.92rem; } .futinfo p { margin: 8px 0 0; font-size: 0.8rem; color: #c9d6ea; line-height: 1.45; }
+.cruce { padding: 10px 12px; margin-bottom: 7px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+.crfila { display: flex; align-items: center; gap: 8px; padding: 3px 0; opacity: .85; }
+.crfila.gana { opacity: 1; } .crfila.gana b { color: #3ee6a8; }
+.crfila img { width: 20px; height: 20px; object-fit: contain; }
+.crfila b { flex: 1; font-size: 0.84rem; font-weight: 600; }
+.crfila span { font-weight: 800; font-variant-numeric: tabular-nums; }
+.cruce small { display: block; margin-top: 4px; font-size: 0.68rem; color: var(--muted); }

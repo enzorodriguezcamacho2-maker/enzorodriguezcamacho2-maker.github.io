@@ -117,7 +117,6 @@ async function cargarProgresivo(liga, alAvanzar, hasta) {
 }
 
 async function tablaDeFuentes(liga) {
-  if (liga.startsWith("uefa")) throw new Error("sin tabla");
   try {
     const d = await jsonDe("https://site.api.espn.com/apis/v2/sports/soccer/" + liga + "/standings");
     const t = tablaEspn(d); if (t.length) return { tabla: t, fuente: "ESPN" };
@@ -181,6 +180,10 @@ function futChips() {
     b.addEventListener("click", () => { futLiga = lg; futPintar(); });
     box.append(b);
   });
+  const esUcl = futLiga === "uefa.champions";
+  if (!esUcl && futTab === "cuadro") futTab = "partidos";
+  $("futTabCuadro").hidden = !esUcl;
+  $("futTabs").classList.toggle("tres", esUcl);
   document.querySelectorAll(".futtab").forEach((t) => t.classList.toggle("on", t.dataset.tab === futTab));
 }
 async function futPintar(forzar) {
@@ -189,6 +192,7 @@ async function futPintar(forzar) {
   $("futTitulo").textContent = NOMBRES_LIGA[futLiga];
   lista.innerHTML = '<div class="futcarga">Cargando datos confirmados…</div>';
   try {
+    if (futTab === "cuadro") { await pintarCuadro(forzar); return; }
     if (futTab === "tabla") {
       const r = await clasificacion(futLiga, forzar);
       lista.innerHTML = "";
@@ -198,7 +202,8 @@ async function futPintar(forzar) {
       const fav = (memLeer().equipo || {}).nombre || "";
       r.tabla.forEach((x) => {
         const tr = document.createElement("tr");
-        if (x.pos <= 4) tr.className = "champ"; else if (x.pos >= r.tabla.length - 2) tr.className = "desc";
+        if (futLiga === "uefa.champions") tr.className = x.pos <= 8 ? "champ" : x.pos <= 24 ? "playoff" : "desc";
+        else if (x.pos <= 4) tr.className = "champ"; else if (x.pos >= r.tabla.length - 2) tr.className = "desc";
         if (fav && normEq(x.eq).includes(normEq(fav).split(" ").pop())) tr.classList.add("fav");
         const c = (t) => { const td = document.createElement("td"); td.textContent = t; return td; };
         const eq = document.createElement("td"); eq.className = "eqcel";
@@ -208,6 +213,11 @@ async function futPintar(forzar) {
         body.append(tr);
       });
       tb.append(body); lista.append(tb);
+      if (futLiga === "uefa.champions") {
+        const ley = document.createElement("div"); ley.className = "futley";
+        ley.innerHTML = '<span><i class="champ"></i>1-8: a octavos</span><span><i class="playoff"></i>9-24: playoff</span><span><i class="desc"></i>25-36: eliminados</span>';
+        lista.append(ley);
+      }
       pie.textContent = "✅ Datos de " + r.fuente + " · actualizado " + hace(r.act).toLowerCase() + (r.viejo ? " (sin conexión: guardado)" : "");
       return;
     }
@@ -290,7 +300,7 @@ futbolProximos = async function (q) {
 };
 const _futbolClasV = futbolClasificacion;
 futbolClasificacion = async function (q) {
-  let liga = ligaDe(q) || "esp.1"; if (liga.startsWith("uefa")) liga = "esp.1";
+  let liga = ligaDe(q) || "esp.1"; if (liga === "uefa.europa") liga = "uefa.champions";
   setEstado("thinking");
   try {
     const r = await clasificacion(liga);
@@ -367,4 +377,91 @@ futbolEquipo = async function (q, modo) {
     }
   }
   return _futbolEquipoV(q, modo);
+};
+
+
+// ================== CHAMPIONS: fase liga y eliminatorias ==================
+const RONDAS = [
+  [/play-?off|knockout round/i, "Playoff de acceso a octavos", 1],
+  [/round of 16|octavos/i, "Octavos de final", 2],
+  [/quarter|cuartos/i, "Cuartos de final", 3],
+  [/semi/i, "Semifinales", 4],
+  [/final/i, "Final", 5]
+];
+function rondaDe(ev) {
+  const comp = (ev.competitions || [])[0] || {};
+  const txt = [((comp.notes || [])[0] || {}).headline, ev.season && ev.season.slug, ev.name, ev.shortName].filter(Boolean).join(" ");
+  const r = RONDAS.find(([re]) => re.test(txt));
+  if (!r || /league phase|fase liga|matchday/i.test(txt) && !/play-?off|round of|quarter|semi/i.test(txt)) return null;
+  return { nombre: r[1], orden: r[2], vuelta: /2nd leg|vuelta|second leg/i.test(txt) };
+}
+// Fechas de la competición (incluye las eliminatorias aunque falten meses)
+async function fechasUcl() {
+  const d = await jsonDe("https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard");
+  const cal = ((d.leagues || [])[0] || {}).calendar || [];
+  const fechas = [];
+  cal.forEach((c) => {
+    if (typeof c === "string") fechas.push(c);
+    else { if (c.startDate) fechas.push(c.startDate); (c.entries || []).forEach((e) => e.startDate && fechas.push(e.startDate)); }
+  });
+  return [...new Set(fechas.map((f) => f.slice(0, 10)))].sort();
+}
+async function cargarCuadro(forzar) {
+  const c = futLeer(), g = c["uefa.champions"] = c["uefa.champions"] || { partidos: [] };
+  if (g.cuadro && !forzar && Date.now() - (g.actCuadro || 0) < 6 * 3600e3) return g.cuadro;
+  const fechas = await fechasUcl();
+  // Las eliminatorias van de febrero a junio del segundo año de la temporada
+  const fin = +temporada().slice(5);
+  const ko = fechas.filter((f) => f >= fin + "-02-01" && f <= fin + "-06-30");
+  const yyyymmdd = (f) => f.replace(/-/g, "");
+  const evs = [];
+  await deTresEnTres(ko.map((f) => async () => (await jsonDe("https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard?dates=" + yyyymmdd(f))).events || []), (lote) => evs.push(...lote));
+  const cruces = {};
+  evs.forEach((ev) => {
+    const r = rondaDe(ev); if (!r) return;
+    const p = deEspn(ev);
+    const k = r.orden + "|" + [normEq(p.local), normEq(p.visit)].sort().join("|");
+    const x = cruces[k] = cruces[k] || { ronda: r.nombre, orden: r.orden, partidos: [] };
+    x.partidos.push(Object.assign(p, { vuelta: r.vuelta }));
+  });
+  const cuadro = Object.values(cruces).map((x) => { x.partidos.sort((a, b) => a.t - b.t); return x; }).sort((a, b) => a.orden - b.orden || a.partidos[0].t - b.partidos[0].t);
+  const c2 = futLeer(); c2["uefa.champions"] = Object.assign(c2["uefa.champions"] || { partidos: [] }, { cuadro, fechasKo: ko, actCuadro: Date.now() }); futGuardar(c2);
+  return cuadro;
+}
+async function pintarCuadro(forzar) {
+  const lista = $("futLista"), pie = $("futPie");
+  const cuadro = await cargarCuadro(forzar);
+  lista.innerHTML = "";
+  if (!cuadro.length) {
+    const ko = (futLeer()["uefa.champions"] || {}).fechasKo || [];
+    const prox = ko.find((f) => f >= fechaISO(new Date()));
+    lista.innerHTML = '<div class="futinfo"><b>🏆 Ahora: fase liga</b><p>Los 8 primeros van directos a octavos. Del 9.º al 24.º juegan un playoff (ida y vuelta) para entrar en octavos. Del 25.º en adelante, eliminados.</p><p>Cuando se haga el sorteo, los cruces aparecerán aquí solos.' + (prox ? " Las eliminatorias empiezan el " + deISO(prox).toLocaleDateString("es-ES", { day: "numeric", month: "long" }) + "." : "") + "</p></div>";
+    pie.textContent = "✅ Calendario de ESPN";
+    return;
+  }
+  let rondaAnt = "";
+  cuadro.forEach((x) => {
+    if (x.ronda !== rondaAnt) { const h = document.createElement("h6"); h.textContent = x.ronda; lista.append(h); rondaAnt = x.ronda; }
+    const ida = x.partidos[0], vta = x.partidos[1];
+    const box = document.createElement("div"); box.className = "cruce";
+    // Global: suma de goles de cada equipo en los partidos jugados
+    const eqA = ida.local, eqB = ida.visit;
+    let gA = 0, gB = 0, jugados = 0;
+    x.partidos.forEach((p) => { if (p.estado === "pre") return; jugados++; const l = +p.gl || 0, v = +p.gv || 0; if (normEq(p.local) === normEq(eqA)) { gA += l; gB += v; } else { gA += v; gB += l; } });
+    const fila = (nom, esc, g, gana) => { const d = document.createElement("div"); d.className = "crfila" + (gana ? " gana" : ""); if (esc) { const im = document.createElement("img"); im.src = esc; im.alt = ""; im.onerror = () => im.remove(); d.append(im); } const b = document.createElement("b"); b.textContent = nom; const n = document.createElement("span"); n.textContent = jugados ? g : ""; d.append(b, n); return d; };
+    const acabado = x.partidos.length > 1 ? vta.estado === "post" : ida.estado === "post";
+    box.append(fila(eqA, ida.escL, gA, acabado && gA > gB), fila(eqB, ida.escV, gB, acabado && gB > gA));
+    const info = document.createElement("small");
+    info.textContent = x.partidos.map((p) => (x.partidos.length > 1 ? (p.vuelta ? "Vuelta" : "Ida") + ": " : "") + (p.estado === "pre" ? diaES(p.t) + " " + horaES(p.t) : p.local + " " + p.gl + "-" + p.gv + " " + p.visit)).join(" · ");
+    box.append(info);
+    lista.append(box);
+  });
+  pie.textContent = "✅ Datos de ESPN · cuadro actualizado " + hace((futLeer()["uefa.champions"] || {}).actCuadro).toLowerCase();
+}
+// Si la Champions ya está en eliminatorias, abre directamente el cuadro
+const _futAbrirV = futAbrir;
+futAbrir = function (liga, tab) {
+  const g = futLeer()["uefa.champions"];
+  if (liga === "uefa.champions" && tab === "tabla" && g && (g.cuadro || []).length) tab = "cuadro";
+  return _futAbrirV(liga, tab);
 };

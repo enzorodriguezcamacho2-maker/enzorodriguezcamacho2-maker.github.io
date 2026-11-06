@@ -1,5 +1,10 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 25, fecha: "6 nov · 23:55", titulo: "Champions: fase liga y eliminatorias", cambios: [
+    "Clasificación de la fase liga de la Champions con sus zonas: 1-8 a octavos, 9-24 playoff, 25-36 eliminados",
+    "Nueva pestaña «⚔️ Eliminatorias»: cuando salga el sorteo, aparecen los cruces solos",
+    "Cada cruce muestra ida, vuelta, resultado global y quién pasa",
+    "Al pasar a eliminatorias, la Champions abre directamente el cuadro"] },
   { v: 24, fecha: "6 nov · 23:50", titulo: "Partidos de verdad: de 3 en 3 y primero los grandes", cambios: [
     "Encontrado el fallo real: Jarvis le pedía mal los partidos a ESPN (error 400) y saturaba TheSportsDB",
     "Ahora pide los partidos día a día, de 3 en 3, como ESPN sí entiende",
