@@ -355,6 +355,7 @@ $("mapaYo").addEventListener("click", () => {
 // ================== ÓRDENES DE VOZ ==================
 function apps(t, n, o) {
   let m;
+  if (memoria(t, n, o)) return true;
   // Abrir paneles
   if (/^(?:abre|abrir|ver|ensename|muestrame|ensena|mira)?\s*(?:el\s+|mi\s+)?(?:calendario|agenda)$/.test(n)) { calAbrir(); return true; }
   if (/^(?:abre|abrir|ver|ensename|muestrame)?\s*(?:el\s+)?mapa$/.test(n)) { mapaAbrir(); return true; }
@@ -548,3 +549,72 @@ function nodoCalAnadir(ev) {
   }, 900);
 }
 $("nodoCal").addEventListener("click", () => calAbrir());
+
+// ================== MEMORIA ==================
+const memLeer = () => { try { return Object.assign({ nombre: "", datos: [] }, JSON.parse(localStorage.getItem("jarvisMem") || "{}")); } catch (e) { return { nombre: "", datos: [] }; } };
+const memGuardar = (m) => { try { localStorage.setItem("jarvisMem", JSON.stringify(m)); } catch (e) {} };
+const memNombre = () => memLeer().nombre;
+const PALABRAS_VACIAS = new Set("que cual cuales cuando donde quien como cuanto cuanta es son era mi mis el la los las de del un una y a en me te se lo le por para con sabes dime tengo".split(" "));
+const claves = (s) => quitarTildes(s.toLowerCase()).replace(/[^a-z0-9ñ ]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !PALABRAS_VACIAS.has(w));
+
+function memoria(t, n, o) {
+  let m;
+  const mem = memLeer();
+  // Nombre: "llámame Mbappé", "a partir de ahora me llamas el mejor", "quiero que me llames X", "me llamo X"
+  m = o.match(/^(?:(?:quiero\s+que\s+)?(?:a\s+partir\s+de\s+ahora\s+|desde\s+ahora\s+)?(?:quiero\s+que\s+)?(?:ll[aá]mame|me\s+llam(?:as|es|ar[aá]s)|ll[aá]mame\s+siempre)|mi\s+nombre\s+es|me\s+llamo|puedes\s+llamarme)\s+(.+)$/i);
+  if (m && !/^(?:a\s+las|en\s+\d|ma[ñn]ana)/i.test(m[1])) {
+    const nom = m[1].replace(/\s+(?:a\s+partir\s+de\s+ahora|desde\s+ahora|por\s+favor)$/i, "").trim();
+    mem.nombre = nom.charAt(0).toUpperCase() + nom.slice(1); memGuardar(mem); saludoInicial();
+    responder("🧠 Lo recordaré", "A partir de ahora te llamo " + mem.nombre + ".", { voz: "Entendido, " + mem.nombre + ". Así te llamaré a partir de ahora." });
+    return true;
+  }
+  if (/^(?:como me llamo|cual es mi nombre|sabes como me llamo|quien soy)$/.test(n)) {
+    responder("🧠 Tu nombre", mem.nombre ? "Eres " + mem.nombre + "." : "Aún no me lo has dicho. Di «llámame …».", { voz: mem.nombre ? "Eres " + mem.nombre : "Aún no me has dicho cómo llamarte" });
+    return true;
+  }
+  if (/^(?:olvida|borra)\s+(?:mi\s+nombre|como me llamo)$/.test(n)) { mem.nombre = ""; memGuardar(mem); saludoInicial(); responder("🧠 Olvidado", "Ya no uso ningún nombre para ti."); return true; }
+
+  // Guardar datos: "recuerda que mi equipo es el Madrid", "acuérdate de que el código del wifi es 1234"
+  m = o.match(/^(?:recuerda|acu[eé]rdate(?:\s+de)?|no\s+(?:te\s+)?olvides(?:\s+de)?|apr[eé]ndete|memoriza|guarda\s+en\s+(?:tu\s+)?memoria)\s+(?:que\s+)?(.+)$/i);
+  if (m && !/^(?:recuerdame|recuerda\s+me)/.test(n)) {
+    const dato = m[1].trim();
+    mem.datos = mem.datos.filter((d) => quitarTildes(d.toLowerCase()) !== quitarTildes(dato.toLowerCase()));
+    mem.datos.push(dato); memGuardar(mem);
+    responder("🧠 Guardado en mi memoria", dato, { voz: "Vale" + (mem.nombre ? ", " + mem.nombre : "") + ". Lo recordaré." });
+    return true;
+  }
+  // Ver memoria
+  if (/^(?:que\s+(?:recuerdas|sabes)(?:\s+de\s+mi)?|que\s+tienes\s+en\s+(?:tu\s+)?memoria|(?:ver|ensename|muestrame|abre)\s+(?:tu\s+|la\s+)?memoria|memoria)$/.test(n)) {
+    const lineas = (mem.nombre ? ["• Te llamas " + mem.nombre] : []).concat(mem.datos.map((d) => "• " + d));
+    responder("🧠 Lo que recuerdo", lineas.length ? lineas.join("\n") : "Todavía nada. Di «recuerda que …» o «llámame …».", {
+      voz: lineas.length ? "Recuerdo " + lineas.length + (lineas.length === 1 ? " cosa" : " cosas") : "Todavía no recuerdo nada",
+      botones: lineas.length ? [{ texto: "Borrar todo", accion: () => { memGuardar({ nombre: "", datos: [] }); saludoInicial(); responder("🧠 Memoria borrada", "He olvidado todo."); } }] : []
+    });
+    return true;
+  }
+  // Olvidar: "olvida lo del wifi", "olvídalo todo"
+  if (/^(?:olvida(?:lo)?|borra)\s+(?:todo|toda\s+tu\s+memoria|tu\s+memoria)$/.test(n)) { memGuardar({ nombre: "", datos: [] }); saludoInicial(); responder("🧠 Memoria borrada", "He olvidado todo."); return true; }
+  m = n.match(/^(?:olvida|olvidate\s+de|borra\s+de\s+(?:tu\s+)?memoria)\s+(?:lo\s+de\s+|que\s+)?(.+)$/);
+  if (m) {
+    const k = claves(m[1]); const antes = mem.datos.length;
+    mem.datos = mem.datos.filter((d) => !k.length || !k.every((w) => claves(d).includes(w)));
+    if (mem.datos.length < antes) { memGuardar(mem); responder("🧠 Olvidado", "Ya no lo recuerdo."); return true; }
+  }
+  // Responder preguntas con lo que recuerda: "cuál es mi equipo", "cuál es el código del wifi"
+  if (mem.datos.length && /^(?:cual|cuales|cuando|donde|quien|como|que|cuanto|sabes)\b/.test(n)) {
+    const k = claves(n);
+    if (k.length) {
+      let mejor = null, pts = 0;
+      for (const d of mem.datos) { const c = claves(d), p = k.filter((w) => c.includes(w)).length; if (p > pts) { pts = p; mejor = d; } }
+      if (mejor && pts >= Math.min(2, k.length)) { responder("🧠 Me dijiste", mejor, { voz: mejor }); return true; }
+    }
+  }
+  return false;
+}
+
+function saludoInicial() {
+  const nom = memNombre();
+  if ($("reply").hidden && /^Hola/.test(transcriptEl.textContent))
+    transcriptEl.textContent = nom ? "Hola, " + nom + ". Toca el orbe o escribe." : "Hola, soy Jarvis. Toca el orbe o escribe.";
+}
+saludoInicial();

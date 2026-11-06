@@ -294,6 +294,7 @@ const CHISTES = [
 ];
 
 const AYUDA = [
+  "🧠  «llámame Mbappé», «recuerda que mi equipo es el Madrid», «cuál es mi equipo», «qué recuerdas»",
   "🌐  «abre youtube», «abre github.com»",
   "🔎  «busca recetas de pasta», «pon Bad Bunny en YouTube»",
   "📚  «infórmame de Marte», «quién es Messi»",
@@ -330,9 +331,10 @@ function ejecutar(ordenOriginal) {
   if (/^(hola|buenas|hey|ey|buenos dias|buenas tardes|buenas noches)\b/.test(n)) {
     const h = new Date().getHours();
     const s = h < 13 ? "Buenos días" : h < 21 ? "Buenas tardes" : "Buenas noches";
-    return responder(s + " 👋", "¿En qué te ayudo? Di «qué puedes hacer» para ver ejemplos.", { voz: s + ". ¿En qué te ayudo?" });
+    const nom = typeof memNombre === "function" ? memNombre() : "";
+    return responder(s + (nom ? ", " + nom : "") + " 👋", "¿En qué te ayudo? Di «qué puedes hacer» para ver ejemplos.", { voz: s + (nom ? ", " + nom : "") + ". ¿En qué te ayudo?" });
   }
-  if (/^(gracias|muchas gracias|genial|perfecto)/.test(n)) return responder("😊", "¡De nada!", { voz: "De nada" });
+  if (/^(gracias|muchas gracias|genial|perfecto)/.test(n)) return responder("😊", "¡De nada!", { voz: "De nada" + (typeof memNombre === "function" && memNombre() ? ", " + memNombre() : "") });
   if (/(quien eres|como te llamas|que eres)/.test(n)) return responder("Soy Jarvis", "Tu asistente personal. Abro webs, busco información, te digo el tiempo, pongo temporizadores, hago cuentas y guardo notas.");
   if (/(que puedes hacer|ayuda|comandos|que sabes hacer)/.test(n)) return responder("Esto es lo que sé hacer", AYUDA, { voz: "Esto es lo que sé hacer." });
   if (/chiste/.test(n)) return responder("😄 Chiste", CHISTES[Math.floor(Math.random() * CHISTES.length)]);
