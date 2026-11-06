@@ -637,3 +637,11 @@ function saludoInicial() {
     transcriptEl.textContent = nom ? "Hola, " + nom + ". Toca el orbe o escribe." : "Hola, soy Jarvis. Toca el orbe o escribe.";
 }
 saludoInicial();
+
+// Botón ✕ en cada mini pantalla para quitarla
+document.querySelectorAll(".nodo .nhead").forEach((h) => {
+  const id = h.parentElement.id;
+  const b = document.createElement("button"); b.className = "ncerrar"; b.title = "Quitar"; b.textContent = "✕";
+  b.addEventListener("click", (e) => { e.stopPropagation(); nodoOcultar(id, true); });
+  h.append(b);
+});

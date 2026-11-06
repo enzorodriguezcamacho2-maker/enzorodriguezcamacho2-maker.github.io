@@ -1,5 +1,9 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 26, fecha: "6 nov · 23:59", titulo: "Botones nuevos y arreglos de las mini pantallas", cambios: [
+    "Botones de la pantalla principal rediseñados: icono grande de color y nombre debajo, sin textos cortados",
+    "Cada mini pantalla tiene su ✕ para quitarla (antes la del tiempo no se podía cerrar)",
+    "La mini pantalla del fútbol es más ancha y los escudos ya no se salen"] },
   { v: 25, fecha: "6 nov · 23:55", titulo: "Champions: fase liga y eliminatorias", cambios: [
     "Clasificación de la fase liga de la Champions con sus zonas: 1-8 a octavos, 9-24 playoff, 25-36 eliminados",
     "Nueva pestaña «⚔️ Eliminatorias»: cuando salga el sorteo, aparecen los cruces solos",
