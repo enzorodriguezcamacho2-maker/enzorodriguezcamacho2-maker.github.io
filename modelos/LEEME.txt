@@ -1,0 +1,3 @@
+Modelos de openWakeWord (https://github.com/dscripka/openWakeWord).
+Código: Apache-2.0. Modelos preentrenados: CC BY-NC-SA 4.0 (solo uso no comercial).
+Jarvis los usa para uso personal.

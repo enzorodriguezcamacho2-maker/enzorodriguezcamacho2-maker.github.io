@@ -1,5 +1,18 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 31, fecha: "7 nov · 18:30", titulo: "Estudio, personalidades, voz natural y mucho más", cambios: [
+    "📚 Modo estudio (botón «Estudio»): material desde un enlace, un archivo (PDF, Word, Excel), texto pegado o una FOTO de tus apuntes",
+    "Con el material: resumen, esquema, conceptos clave, explicación fácil, tarjetas con repaso inteligente, test con nota y examen oral por voz",
+    "Ejercicios con pistas (foto del ejercicio), pomodoro, plan de exámenes en el calendario, progreso, mapa mental y pódcast del tema",
+    "📋 Agenda de deberes: «tengo que entregar el trabajo de historia el jueves»",
+    "🏆 Niveles, XP, logros y reto diario",
+    "📈 Gráficas: «dibuja y = x^2 - 4»",
+    "🔬 Investigación profunda con informe y fuentes",
+    "🕵️ Detector de textos de IA (guía de Wikipedia) y ✍️ reescritura natural con tu estilo",
+    "🎭 Personalidades: Jarvis, Profe, Examinador, Investigador, Coach, Colega, Teacher… y las tuyas",
+    "🎙️ Voz natural en tiempo real (Gemini Live): hablas normal y puedes interrumpirle",
+    "👂 «Hey Jarvis»: llámalo sin tocar nada (con la página abierta)",
+    "🔒 Hacker: mensajes cifrados, generador de claves, ¿contraseña filtrada?, ficha de una web, máquina del tiempo y Matrix"] },
   { v: 30, fecha: "7 nov · 11:10", titulo: "Arreglo: a veces oía pero no respondía", cambios: [
     "En el Chromebook el reconocimiento de voz a veces se cortaba sin dar la frase final y Jarvis se quedaba callado",
     "Ahora, si en 2 segundos no llega, usa lo último que oyó y responde igual"] },

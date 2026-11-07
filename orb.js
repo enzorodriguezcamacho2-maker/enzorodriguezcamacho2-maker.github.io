@@ -47,6 +47,11 @@ class ParticleOrb {
   }
 
   setMode(m) { this.mode = m; }
+  // Colores base del orbe (dos colores en #rrggbb)
+  setBase(a, b) {
+    const rgb = (h) => { const n = parseInt(h.replace("#", ""), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+    this.base = a && b ? [rgb(a), rgb(b)] : null;
+  }
   // Cambia el color un rato (por ejemplo, verde con el mapa)
   setTinte(hex, ms) {
     const n = parseInt(hex.replace("#", ""), 16);
@@ -68,6 +73,8 @@ class ParticleOrb {
       speaking:  { sp: 0.45, a: [139, 123, 255], b: [255, 94, 138]  }
     }[this.mode] || { sp: 0.18, a: [94, 231, 255], b: [139, 123, 255] };
 
+    // Color propio de la personalidad (en reposo y escuchando)
+    if (this.base && (this.mode === "idle" || this.mode === "listening")) cfg = { sp: cfg.sp, a: this.base[0], b: this.base[1] };
     if (this.tinte && now < this.tinteHasta && this.mode !== "listening") {
       const tt = this.tinte;
       cfg = { sp: cfg.sp, a: tt, b: [tt[0] * 0.6 + cfg.b[0] * 0.4, tt[1] * 0.6 + cfg.b[1] * 0.4, tt[2] * 0.6 + cfg.b[2] * 0.4] };
