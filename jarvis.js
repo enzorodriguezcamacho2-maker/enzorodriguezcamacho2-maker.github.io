@@ -481,7 +481,7 @@ function ejecutar(ordenOriginal) {
 
 // ================== MICRÓFONO ==================
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, escuchando = false, directo = false;
+let rec = null, escuchando = false, directo = false, pendiente = "", pendienteT = null;
 
 // Nivel de voz para que el orbe reaccione
 let audioCtx = null, micStream = null, raf = 0;
@@ -519,6 +519,9 @@ if (!SR) {
   rec.onstart = () => { escuchando = true; if (!hablando) setEstado(cfg.atento && !directo ? "idle" : "listening"); if (!cfg.atento || directo) medirMic(true); };
   rec.onend = () => {
     escuchando = false;
+    // Chrome a veces corta sin dar la frase "final": usamos lo último que oyó
+    clearTimeout(pendienteT);
+    if (pendiente) { const p = pendiente; pendiente = ""; directo = false; ejecutar(p); }
     medirMic(false);
     if (cfg.atento) setTimeout(() => { if (!escuchando) try { rec.continuous = true; rec.start(); } catch (e) {} }, 300);
     else if (estado === "listening") setEstado("idle");
@@ -539,11 +542,17 @@ if (!SR) {
     const activo = !cfg.atento || directo;
     if (interim && (activo || interim.toLowerCase().includes(PALABRA_CLAVE))) {
       if (!activo) setEstado("listening");
+      if (activo) {
+        // Si en 1,8 s no llega la frase final, ejecuta lo que ha oído
+        pendiente = interim.trim(); clearTimeout(pendienteT);
+        pendienteT = setTimeout(() => { if (pendiente) { const p = pendiente; pendiente = ""; directo = false; ejecutar(p); try { if (!cfg.atento) rec.stop(); } catch (e) {} } }, 1800);
+      }
       transcriptEl.innerHTML = "";
       const s = document.createElement("span"); s.className = "interim"; s.textContent = interim;
       transcriptEl.append(s);
     }
     if (!final) return;
+    pendiente = ""; clearTimeout(pendienteT);
     const low = final.toLowerCase();
     if (activo) { directo = false; ejecutar(final); if (cfg.atento) medirMic(false); return; }
     const idx = low.indexOf(PALABRA_CLAVE);

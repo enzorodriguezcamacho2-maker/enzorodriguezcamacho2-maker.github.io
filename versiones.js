@@ -1,5 +1,8 @@
 // Historial de versiones de Jarvis (lo que se hizo en cada una)
 const VERSIONES = [
+  { v: 30, fecha: "7 nov · 11:10", titulo: "Arreglo: a veces oía pero no respondía", cambios: [
+    "En el Chromebook el reconocimiento de voz a veces se cortaba sin dar la frase final y Jarvis se quedaba callado",
+    "Ahora, si en 2 segundos no llega, usa lo último que oyó y responde igual"] },
   { v: 29, fecha: "7 nov · 00:20", titulo: "WhatsApp: entiende más formas de pedirlo", cambios: [
     "«Mándale un mensaje Enzo diciéndole hola» (sin «a» y con tilde) ya funciona",
     "También «dile a papá que ya voy», «pásale a mamá un mensaje…», «whatsapp a Pablo: …»"] },
